@@ -12,16 +12,18 @@ const assets=new Set(['index.html','style.css','docx.js','sample.js','review.js'
 let active=null,origin;
 assets.add('profile-return.js');
 assets.add('outbound.js');
+assets.add('moyin-32.png');
+assets.add('moyin-96.png');
 const server=http.createServer(async(req,res)=>{
   if(req.headers.host!==new URL(origin).host){res.writeHead(403).end();return;}
   res.setHeader('Cache-Control','no-store');
   res.setHeader('X-Content-Type-Options','nosniff');
-  res.setHeader('Content-Security-Policy',"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; frame-ancestors 'none'; form-action 'none'; base-uri 'none'");
+  res.setHeader('Content-Security-Policy',"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; frame-ancestors 'none'; form-action 'none'; base-uri 'none'");
   if(formats.serve(req,res))return;
   if(req.method==='GET'){
     const file=req.url==='/'?'index.html':req.url.slice(1);
     if(!assets.has(file)){res.writeHead(404).end();return;}
-    res.setHeader('Content-Type',({'html':'text/html','css':'text/css','js':'text/javascript'})[file.split('.').pop()]+'; charset=utf-8');
+    res.setHeader('Content-Type',({'html':'text/html','css':'text/css','js':'text/javascript','png':'image/png'})[file.split('.').pop()]+ (file.endsWith('.png')?'':'; charset=utf-8'));
     fs.createReadStream(path.join(__dirname,'web',file)).on('error',()=>res.destroy()).pipe(res);
     return;
   }

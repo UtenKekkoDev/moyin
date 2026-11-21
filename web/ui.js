@@ -16,6 +16,9 @@ function controls(){
   ui.returnPanel.hidden=!snapshots.size;
   ui.checked.disabled=!done;ui.copy.disabled=!done||!ui.checked.checked||!ui.draft.value.trim();
   ui.draft.readOnly=!done; ui.manual.hidden=ui.reviewPanel.hidden=!review;
+  ui.previewEmpty.hidden=!!review;
+  ui.draft.hidden=!review;
+  ui.jumpReview.hidden=!review||!pending();
   ui.reviewState.textContent=busy?'处理中':review?(pending()?'建议稿 · 待核对 '+pending()+' 处':(ui.checked.checked?'已核对':'可编辑最终文本')):'等待识别';
 }
 function invalidate(){
@@ -105,6 +108,11 @@ function render(){
   controls();
 }
 ui.prev.onclick=()=>{page--;render();};ui.next.onclick=()=>{page++;render();};ui.filter.onchange=()=>{page=0;render();};
+ui.jumpReview.onclick=()=>{
+  ui.filter.value='pending';
+  page=0;
+  render();
+};
 for(const key of ['prompt','body','policy','vocabulary']){
   if(key==='prompt'||key==='body')ui[key].onfocus=()=>manualPart=key;
   ui[key].onbeforeinput=e=>{

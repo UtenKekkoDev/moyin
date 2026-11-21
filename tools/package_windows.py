@@ -17,7 +17,7 @@ def main():
             parser.error(f"Missing runtime component: {required}")
     dest = root / "dist"
     dest.mkdir(exist_ok=True)
-    package = dest / "moyin-windows-x64-v0.1.0-beta.1.zip"
+    package = dest / "moyin-windows-x64-v0.1.0-beta.2.zip"
     tracked = check_output(["git", "ls-tree", "-rz", "--name-only", "HEAD"], cwd=root)
     with ZipFile(package, "w", ZIP_DEFLATED, compresslevel=6) as bundle:
         for entry in tracked.decode("utf-8").split("\0"):

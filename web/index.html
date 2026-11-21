@@ -1,34 +1,37 @@
 <!doctype html>
 <html lang="zh-CN" translate="no"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>墨隐 · 本地脱敏工作台</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="review.css">
+<link rel="icon" href="/moyin-32.png" type="image/png" sizes="32x32"><title>墨隐 · 本地脱敏工作台</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="review.css">
 <script defer src="text-import.js"></script>
 <script defer src="sample.js"></script><script defer src="docx.js"></script><script defer src="review.js"></script><script defer src="outbound.js"></script><script defer src="ui.js"></script><script defer src="profile-return.js"></script></head>
-<body><header><div class="bar"><div class="brand"><i aria-hidden="true"></i>墨隐<span>文档脱敏</span></div><span class="offline">● 本机运行 · Aztec-Coder-4B</span></div></header>
-<main><section class="intro"><div><h1>本地脱敏工作台</h1><p>核对每一处敏感文字，再复制给外部 AI。</p></div><div class="buttons"><a href="/formats/" target="_blank" rel="noopener">文件遮盖工具</a><button id="demo">试用模拟项目</button></div></section>
+<body><header><div class="bar"><div class="brand"><img src="/moyin-96.png" alt="" width="32" height="32">墨隐</div><nav aria-label="工作区"><span aria-current="page">文档脱敏</span><a href="/formats/" target="_blank" rel="noopener" aria-label="文件涂黑，在新标签页打开">文件涂黑 ↗</a></nav><span class="offline">本机运行 <b>Aztec-Coder-4B</b></span></div></header>
+<main><section class="intro"><div><h1>文档脱敏工作台</h1><p>导入内部材料，核对正文与提示词，再复制对外稿。</p></div><button id="demo">载入模拟项目</button></section>
 <div class="workspace"><section class="panel"><div class="panelTitle"><h2>原始材料</h2><button id="clear" class="link">清空</button></div>
 <div class="inside"><div id="drop" class="drop"><div><strong id="filename">导入材料</strong><small id="fileinfo">Word、TXT、Markdown · 单次最多 6 万字符</small></div><label class="button" for="file">选择文件</label><input class="file" id="file" type="file" accept=".docx,.txt,.md,.markdown"></div>
-<label class="field" for="body">正文与表格</label><textarea rows="6" id="body" maxlength="60000" placeholder="导入文件，也可以直接粘贴正文。" spellcheck="false"></textarea>
-<label class="field" for="prompt">提示词</label><textarea rows="3" id="prompt" maxlength="10000" placeholder="输入打算随材料发送的要求。" spellcheck="false"></textarea>
+<label class="field" for="body">正文与表格</label><textarea rows="4" id="body" maxlength="60000" placeholder="导入文件，或在此粘贴正文…" spellcheck="false"></textarea>
+<label class="field" for="prompt">写作提示词 <span>随稿发送</span></label><textarea rows="2" id="prompt" maxlength="10000" placeholder="希望外部 AI 怎样编辑这份材料？" spellcheck="false"></textarea>
 <label class="field" for="policy">本地脱敏要求（选填）</label><textarea rows="2" id="policy" maxlength="1000" placeholder="例如：隐去客户报价，保留采购成本和延期天数。" aria-describedby="policyHelp" spellcheck="false"></textarea>
-<small id="policyHelp">留空使用默认识别。这里的要求仅在本机使用，复制结果包含写作提示词、材料和稿号。</small>
+<small id="policyHelp">仅在本机使用。留空则使用默认识别。</small>
 <details id="profileBox"><summary>本机词表与脱敏模板</summary>
 <label class="field" for="vocabulary">本次启用的词表</label><textarea id="vocabulary" rows="3" maxlength="30000" placeholder="客户 | 山岚包装有限公司 | 山岚，SL&#10;项目 | 石榴" spellcheck="false"></textarea>
 <small>每行一项，用竖线隔开类别、全称、可选客户简称。支持客户、人员、项目、机构、敏感内容。多个简称用逗号隔开。</small>
 <div class="buttons"><button id="saveProfile">导出要求和词表</button><label class="button" for="loadProfile">导入模板</label><input id="loadProfile" class="file" type="file" accept=".json"></div>
 <small>模板文件含原始词项，只在主动导出时保存到本机。导入后可以为当前材料单独修改。</small></details>
 <div class="actions"><button id="run" class="primary" disabled>开始本地识别</button><button id="cancel" hidden>取消识别</button></div>
-<div class="manual" id="manual" hidden><label for="manualType">补标选区</label><select id="manualType"><option>人员</option><option>客户全称</option><option>客户简称</option><option>项目</option><option>编号</option><option>机构</option><option>电话</option><option>邮箱</option><option>敏感内容</option></select><button id="add">替换选中文字</button><small>在上方原文或提示词中选中漏项，可只替换那一处。</small></div>
+<p role="status" id="status">Word 仅读取正文与普通表格。</p><div class="manual" id="manual" hidden><label for="manualType">补标选区</label><select id="manualType"><option>人员</option><option>客户全称</option><option>客户简称</option><option>项目</option><option>编号</option><option>机构</option><option>电话</option><option>邮箱</option><option>敏感内容</option></select><button id="add">替换选中文字</button><small>在上方原文或提示词中选中漏项，可只替换那一处。</small></div>
 </div></section>
-<section class="panel review"><div class="panelTitle"><h2>复制预览</h2><span class="state" id="reviewState">等待识别</span></div><div class="inside">
-<label class="field first" for="draft">当前文本</label><textarea rows="14" id="draft" readonly spellcheck="false" placeholder="识别完成后，这里显示建议稿。逐处核对后可直接修改最终文本。"></textarea>
+<section class="panel review" id="previewPanel" tabindex="-1" aria-label="对外稿预览"><div class="panelTitle"><h2>对外稿预览</h2><span class="state" id="reviewState" aria-live="polite">等待识别</span></div><div class="inside">
+<div class="proof">
+<div id="previewEmpty" class="previewEmpty"><div class="sampleSheet"><span>替换示例</span><p>原文</p><div>发给<em>山岚包装</em>的报价为 <em>8 万元</em>。</div><hr><p>对外稿</p><div>发给<mark>【客户A】</mark>的报价为 <mark>【金额A】</mark>。</div></div><small>识别完成后，此处显示你的对外稿。</small></div>
+<textarea rows="14" id="draft" aria-label="对外稿文本" hidden readonly spellcheck="false"></textarea></div>
+<a href="#reviewPanel" id="jumpReview" hidden>查看待核对位置 ↓</a>
 <div id="preflight" hidden><p role="status" id="issueText"></p><button id="locateIssue">定位这处原文</button> <button id="allowIssue">确认这处可对外发送</button></div>
 <small id="stampNote">复制时附上本次稿号，供返回汇报匹配本页代号表。</small>
 <div class="copyrow"><label class="check"><input type="checkbox" id="checked" disabled>我已核对完整文本</label><button id="copy" class="primary" disabled>复查并复制</button></div>
-</div></section></div><p role="status" id="status">文件与提示词在本机处理。Word 仅读取正文与普通表格。</p>
-<section class="panel" id="reviewPanel" hidden><div class="panelTitle"><h2>逐处核对</h2><span class="state" id="count"></span></div>
+</div></section></div>
+<section class="panel" id="reviewPanel" tabindex="-1" aria-label="逐处核对" hidden><div class="panelTitle"><h2>逐处核对</h2><span class="state" id="count"></span></div>
 <div class="inside"><p id="policyNote" hidden></p><details id="aliasBox"><summary>客户全称与简称</summary><div id="aliasList"></div></details>
 <div class="navrow"><label>显示 <select id="filter"><option value="all">全部位置</option><option value="pending">待核对位置</option><option value="policy">按本次要求识别</option><option value="attention">需要重点核对</option><option value="dictionary">来自本机词表</option></select></label><span><button id="prev">上一页</button> <span id="pageNo"></span> <button id="next">下一页</button></span></div>
-<ol id="rows" class="positions"></ol></div></section>
+<ol id="rows" class="positions"></ol><a class="backPreview" href="#previewPanel">返回对外稿预览 ↑</a></div></section>
 <section class="panel" id="returnPanel" hidden><div class="panelTitle"><h2>汇报回填</h2></div><div class="inside">
 <label class="field first" for="returnVersion">对外稿版本</label><select id="returnVersion"><option value="">按返回稿号匹配</option></select>
 <small>代号表仅在当前页面有效。请在刷新或关闭页面前完成回填。</small>

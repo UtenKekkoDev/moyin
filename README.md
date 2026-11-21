@@ -4,7 +4,7 @@ Windows x64 上运行的本地文档脱敏工具。导入 Word 正文或粘贴�
 
 ## 安装
 
-1. 在本仓库的 Releases 下载 `moyin-windows-x64-v0.1.0-beta.1.zip` 和 `SHA256SUMS.txt`。用 PowerShell 的 `Get-FileHash` 核对压缩包后解压到可写目录。
+1. 在本仓库的 Releases 下载 `moyin-windows-x64-v0.1.0-beta.2.zip` 和 `SHA256SUMS.txt`。用 PowerShell 的 `Get-FileHash` 核对压缩包后解压到可写目录。
 2. 下载固定版本的 [Aztec-Coder-4B.Q4_K_M.gguf](https://huggingface.co/mradermacher/Aztec-Coder-4B-GGUF/resolve/488fa00b1e01fc00965b4467e6e592a78316ebb4/Aztec-Coder-4B.Q4_K_M.gguf)，放入解压目录的 `models` 文件夹。也可以从已有的完整离线版复制同名文件。
 3. 在解压目录执行以下命令。输出应为 `d3a654bc04d48fbba8172a24e76fc91ae67f28f63a250988a243b433a218673f`（忽略大小写）。
 

@@ -17,10 +17,20 @@ async function run(){
     assert.ok(summary.scoped);
     assert.deepEqual(rows.filter(r=>r.suggest).map(r=>[r.part,r.type,r.basis]),[[part,type,policy]]);
   }
-  for(const policy of ['只在正文里隐藏姓名，提示词也要遮报价。','只遮正文最后一段的人名。','只遮报价，保留第一笔报价。','只遮人名，但保留收件人赵芹。']){
+  for(const policy of ['只在正文里隐藏姓名，提示词也要遮报价。','只遮正文最后一段的人名。','只遮报价，保留第一笔报价。','只遮人名，但保留收件人的姓名。','只遮人名，但仅在提示词保留收件人赵芹。','只遮报价，但保留收件人赵芹。']){
     assert.equal(sectionPolicy(policy),null);
     assert.equal(parseExclusive(policy),null);
   }
   assert.deepEqual(values({body:'请把预算700元整理成表，合计900元整。'}).map(c=>c.value),['700元','900元整']);
+  for(const [instruction,keepDefaults] of [['遮人名，但保留收件人沈澜。',true],['只遮人名，但保留收件人沈澜。',false]]){
+    const rows=names();
+    const company='其他公司',body=sources.body+company;
+    rows.push({id:2,part:'body',type:'客户',value:company,start:sources.body.length,end:body.length,suggest:true});
+    await applyPolicy({...sources,body},rows,instruction,noInference,()=>{});
+    assert.equal(rows[0].suggest,false);
+    assert.match(rows[0].basis,/保留收件人沈澜/u);
+    assert.equal(rows[1].suggest,true);
+    assert.equal(rows[2].suggest,keepDefaults);
+  }
 }
 run().catch(e=>{console.error(e);process.exitCode=1;});

@@ -88,6 +88,11 @@ async function applyPolicy(sources,rows,policy,generate,progress,{section,spec}=
     const numeric=[...spec.directives.keys()].some(k=>!entityKeys.has(k));
     const changes=numeric?await fieldMatches(scopedSources,scopedRows,spec,policy,generate,progress):[];
     for(const r of scopedRows){
+      const keep=r.type==='人员'&&spec.keptPeople?.get(r.value);
+      if(keep){
+        changes.push({part:r.part,start:r.start,end:r.end,type:r.type,value:r.value,suggest:false,basis:keep});
+        continue;
+      }
       const directive=spec.directives.get(r.type)||(r.type==='客户'&&spec.directives.get(r.role==='full'?'客户全称':'客户简称'));
       if(r.suggest&&directive?.mask&&entityKeys.has(r.type)){
         changes.push({part:r.part,start:r.start,end:r.end,type:r.type,value:r.value,suggest:true,basis:directive.basis});

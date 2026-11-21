@@ -1,6 +1,6 @@
 'use strict';
-// Accept complete, exclusive field instructions. Unconsumed qualifications,
-// exceptions and single-section restrictions stay with the general reviewer.
+// Accept complete field instructions. Leave unconsumed qualifications with
+// the general reviewer rather than treating them as document-wide rules.
 const names=[
   ['price',/^(?:(?:发给|给|对)客户的?|客户|对外)?(?:最终|含税)?报价(?:的?金额)?$/u],
   ['delay',/^(?:实际|交付|验收|交货|上线)?延期(?:的?(?:时长|时间|天数))?$/u],
@@ -38,13 +38,28 @@ function masks(clause){
   const keys=s.split(/以及|[、及和与]/u).map(field);
   return keys.every(Boolean)?keys:null;
 }
+// A named recipient is an exception to the person field. Keep the literal
+// until we can compare it with whole person spans in the document.
+function recipientToKeep(clause){
+  const match=clause.match(/^(?:但(?:是)?|不过)?(?:请)?(?:原样)?保留(?:邮件)?收件人\s*[：:]?\s*(.+?)(?:的(?:姓名|名字|人名))?$/u);
+  if(!match)return null;
+  let literal=match[1].trim();
+  const quoted=literal.match(/^“([^”]+)”$|^「([^」]+)」$|^"([^"]+)"$/u);
+  if(quoted)literal=quoted[1]||quoted[2]||quoted[3];
+  if(!/^(?:[\p{Script=Han}]{2,4}|[A-Za-z]+(?:[ '-][A-Za-z]+){0,3})$/u.test(literal))return null;
+  if(/^(?:的|是|为|和|与|及)|姓名|名字|称呼|本人|信息|地址|邮箱|电话|那位|所有|仅在|只在|除外/u.test(literal))return null;
+  return literal;
+}
 function parseExclusive(policy){
-  if(!/(?:只|仅)(?:需|要|想)?(?:把|将|隐|遮|替换|处理)|(?:其他|其余)(?:内容|信息)?(?:都|全部)?(?:原样保留|保留|照原样)/u.test(policy))return null;
+  const exclusive=/(?:只|仅)(?:需|要|想)?(?:把|将|隐|遮|替换|处理)|(?:其他|其余)(?:内容|信息)?(?:都|全部)?(?:原样保留|保留|照原样)/u.test(policy);
+  if(!exclusive&&!policy.includes('收件人'))return null;
   const clauses=policy.split(/[，,。；;！!\n]/u).map(s=>s.trim()).filter(Boolean);
-  const directives=new Map(),keeps=[];
+  const directives=new Map(),keeps=[],keptPeople=new Map();
   for(const c of clauses){
     if(/^(?:其他|其余)(?:内容|信息)?(?:都|全部)?(?:原样保留|保留|照原样)$/u.test(c))continue;
     if(supplemental(c,directives))continue;
+    const person=recipientToKeep(c);
+    if(person){keptPeople.set(person,c);continue;}
     const keys=masks(c);
     if(keys){for(const k of keys)directives.set(k,{mask:true,basis:c});continue;}
     const keep=c.match(/^(?:请)?(?:保留|不要删掉|别改)(.+)$/u)||c.match(/^(.+?)(?:请|也要|也|都要|照|都|必须|原样|保持)?(?:保留|照原样写|照常写|留着|不变|原样)$/u);
@@ -55,11 +70,12 @@ function parseExclusive(policy){
     if(!kept.every(s=>ordinary.test(s)||/^(?:(?:正常|计划)?(?:停用|操作|施工|运输|检测)(?:时间|时长|周期)|读数|版号)$/u.test(s)))return null;
     keeps.push(...kept);
   }
-  if(!directives.size)return null;
+  if(!directives.size||(keptPeople.size&&!directives.has('人员')))return null;
+  if(!exclusive&&(!keptPeople.size||directives.size!==1||keeps.length))return null;
   // A keep instruction referring to the same class may be an exception.
   const conflicts={price:/报价|价格|^金额$/,delay:/^(?:延期|延误)(?!原因)|^时长$/,budget:/预算|^金额$/,lodging:/住宿|^费用$|^金额$/,人员:/人名|姓名|收件人/,项目:/代号|项目名|版本名/,客户:/客户名|公司名|全称|简称/,客户全称:/公司名|全称/,客户简称:/简称/};
   for(const [key] of directives)if(keeps.some(k=>conflicts[key].test(k)))return null;
-  return {directives,exclusive:true};
+  return {directives,exclusive,keptPeople};
 }
 // A section applies to the entire field selection only for a single explicit
 // instruction. Multi-clause exceptions must retain their original wording.

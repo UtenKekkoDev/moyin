@@ -1,6 +1,6 @@
 'use strict';
 const {parseFields,fieldMatches,values}=require('./fields.cjs');
-const {parseExclusive}=require('./field-policy.cjs');
+const {parseExclusive,sectionPolicy}=require('./field-policy.cjs');
 
 const object = properties => ({type:'object',properties,required:Object.keys(properties),additionalProperties:false});
 const string = {type:'string'};
@@ -74,12 +74,17 @@ function exactField(edit, start){
 }
 
 async function applyPolicy(sources,rows,policy,generate,progress){
-  const spec=parseFields(policy)||parseExclusive(policy);
+  const section=sectionPolicy(policy);
+  const instruction=section?.instruction||policy;
+  const spec=parseFields(instruction)||parseExclusive(instruction);
   if(spec){
+    const scopedRows=section?rows.filter(row=>row.part===section.part):rows;
+    const scopedSources=section?{[section.part]:sources[section.part]}:sources;
+    if(section)for(const directive of spec.directives.values())directive.basis=policy;
     const entityKeys=new Set(['人员','客户','客户全称','客户简称','项目']);
     const numeric=[...spec.directives.keys()].some(k=>!entityKeys.has(k));
-    const changes=numeric?await fieldMatches(sources,rows,spec,policy,generate,progress):[];
-    for(const r of rows){
+    const changes=numeric?await fieldMatches(scopedSources,scopedRows,spec,policy,generate,progress):[];
+    for(const r of scopedRows){
       const directive=spec.directives.get(r.type)||(r.type==='客户'&&spec.directives.get(r.role==='full'?'客户全称':'客户简称'));
       if(r.suggest&&directive?.mask&&entityKeys.has(r.type)){
         changes.push({part:r.part,start:r.start,end:r.end,type:r.type,value:r.value,suggest:true,basis:directive.basis});
@@ -107,6 +112,12 @@ async function applyPolicy(sources,rows,policy,generate,progress){
         if(index<0||!edit.basis.trim()||!policy.includes(edit.basis)){unlocated++;continue;}
         let {start,value,type}=exactField(edit,line.start+index);
         if(edit.action==='隐去'&&!wholePassage(edit.basis)){
+          // The generic reviewer can quote a whole reminder for a single person.
+          // Anchor to a known name only for an explicit name-level instruction.
+          if(/(?:人名|姓名)(?:都)?(?:换成(?:人员)?代号|匿名化|遮掉)?$/u.test(edit.basis)){
+            const people=rows.filter(r=>r.part===part&&r.type==='人员'&&r.suggest&&r.start>=start&&r.end<=start+value.length);
+            if(people.length===1)({start,value,type}=people[0]);
+          }
           // Match inside the original document, so repeated values, ranges and
           // currency units keep their original offsets and boundaries.
           const mixed=/[和及与、]|以及/u.test(edit.basis);

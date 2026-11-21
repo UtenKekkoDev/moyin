@@ -45,7 +45,7 @@ function parseFields(policy){
 const number='(?:\\d+(?:[,，]\\d{3})*(?:\\.\\d+)?|[零〇一二两三四五六七八九十百千万亿点壹贰叁肆伍陆柒捌玖拾佰仟萬億]+|半)';
 const gap='[ \\t]*',range=gap+'(?:到|至|[-–—~～])'+gap;
 const prefix='(?:人民币|港元|港币|美元|欧元|英镑|日元|RMB|CNY|USD|EUR|HKD|[¥￥$€£])';
-const moneyUnit='(?:[十百千万亿萬億]'+gap+')?(?:元人民币|人民币|元整|美元|美金|港元|欧元|英镑|日元|元|块钱|USD|CNY|RMB|EUR|HKD)';
+const moneyUnit='(?:[十百千万亿萬億]'+gap+')?(?:元人民币|人民币|元整(?!理|改|合|顿|备)|美元|美金|港元|欧元|英镑|日元|元|块钱|USD|CNY|RMB|EUR|HKD)';
 const timeUnit='(?:个?'+gap+'(?:半月|工作日|自然日|日历日|星期|礼拜|月|季度|小时|钟头)|天|周|日)';
 // At least one endpoint must carry a currency or duration unit.
 function valuePattern(unit,lead=''){
@@ -60,9 +60,9 @@ const compactMoney=new RegExp(number+gap+'(?:[千萬万亿億]|[kKwW](?![a-zA-Z]
 const numericCell=new RegExp('^'+number+'(?:'+range+number+')?$','u');
 const bareField=new RegExp('(报价(?:金额)?|采购成本|预算|延期天数|延误天数)'+gap+'(?:[（(][^()（）\\n]{1,8}[)）])?'+gap+'[=:：＝]'+gap+'('+number+'(?:'+range+number+')?)'+gap+'(?=$|[，,。；;|｜\\t\\n])','gu');
 const calendar=/\d{1,4}\s*(?:年\s*\d{1,2}\s*)?月\s*\d{1,2}\s*[日号]?|(?:延[期后]至|推迟到|顺延至|下月|本月)\s*\d{1,2}\s*[日号]/gu;
-const moneyRole=/对外(?:报(?:价|了)?|给价)|报给|报了|报多少|报价|开价|要价|售价|对客价|客户价|(?:客户|买方|采购方)的(?:总价|最终价)|成本|预算|支出|利润|回款|采购价|进价|余额|(?:代垫|先垫|垫付)[款金]?|垫款|尾款|货款余额|运费|押金|保证金|预[收付](?:款|金)?|材料费|物料(?:费|款|那边)|报销[款额]?/gu;
+const moneyRole=/对外(?:报(?:价|了)?|给价)|报给|报了|报多少|报价|开价|要价|售价|对客价|客户价|(?:客户|买方|采购方)的(?:总价|最终价)|成本|预算|支出|利润|回款|采购价|进价|余额|(?:代垫|先垫|垫付)[款金]?|垫款|尾款|货款余额|运输费|运费|押金|保证金|预[收付](?:款|金)?|材料费|物料(?:费|款|那边)|报销[款额]?/gu;
 const delayWord=/延期|延误|延迟|延后|推迟|推后|顺延|拖期|滞后|推延|晚点|往后挪|晚/u;
-const durationWord=/耗时|用时|用去|用掉|工期|历时|持续|培训|试运行|提前|各用|各需|原需|仍需|原定用时|(?:测试|联调|排查|复核|演练|备货)(?:原本|正常|通常|还)?(?:排了?|占用?|需要?|得用|用)/u;
+const durationWord=/耗时|用时|用去|用掉|工期|历时|持续|培训|试运行|停用|停机|提前|各用|各需|原需|仍需|原定用时|预留|(?:更换|检修|测试|联调|排查|复核|演练|备货)(?:原本|正常|通常|预计|还)?(?:排了?|占用?|需要?|得用|要|用)/u;
 const timeRole=new RegExp(delayWord.source+'|'+durationWord.source,'gu');
 function roleOf(text,family){
   const all=[...text.matchAll(family==='money'?moneyRole:timeRole)];
@@ -70,7 +70,7 @@ function roleOf(text,family){
   const match=all.at(-1);
   if(text.length-match.index-match[0].length>14)return null;
   const name=match[0];
-  if(family==='money')return /成本|采购价|进价|材料费|物料/.test(name)?'cost':/预算|支出|利润|回款|余额|垫|尾款|运费|押金|保证金|报销|预收|预付/.test(name)?'other':'price';
+  if(family==='money')return /成本|采购价|进价|材料费|物料/.test(name)?'cost':/预算|支出|利润|回款|余额|垫|尾款|运输费|运费|押金|保证金|报销|预收|预付/.test(name)?'other':'price';
   return durationWord.test(name)?'duration':'delay';
 }
 function contextRole(line,offset,length,family,header){
@@ -158,7 +158,7 @@ async function fieldMatches(sources,rows,spec,policy,generate,progress){
     guesses.set(r.part+':'+r.start+':'+r.end,r);
     const calendarValue=new RegExp('^(?:'+calendar.source+')$','u').test(r.value);
     const following=sources[r.part].slice(r.end,r.end+35);
-    const fieldLabel=/^(?:本次|对外|对客|采购|预计|员工|正常|计划|测试)?(?:报价|开价|要价|售价|(?:代垫|先垫|垫付)[款金]?|垫款|尾款|货款余额|运费|押金|保证金|成本|工期|耗时|用时|交付|交货|验收|出货|上线)$/u.test(r.value);
+    const fieldLabel=/^(?:本次|对外|对客|采购|预计|员工|正常|计划|测试)?(?:报价|开价|要价|售价|(?:代垫|先垫|垫付)[款金]?|垫款|尾款|货款余额|运输费|运费|押金|保证金|成本|工期|耗时|用时|交付|交货|验收|出货|上线)$/u.test(r.value);
     const usedAsLabel=(fieldLabel&&(/^\s*(?:$|[|｜（(：:＝=¥￥€$]|\d|[一二三四五六七八九十])/.test(following)||/^(?:将|要|未|已|仍|预计|暂定)?(?:延期|顺延|推迟|延后|推后|如期)/u.test(following)||
       following.startsWith('\n')))||(/^对[客外]$/u.test(r.value)&&/^报价/u.test(following));
     if((calendarValue&&/(?:延[期后]至|顺延至|推迟到|定于|交付日期[：:])\s*$/.test(context))||

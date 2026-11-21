@@ -73,10 +73,13 @@ function exactField(edit, start){
   return {start,value:edit.quote,type:edit.kind};
 }
 
-async function applyPolicy(sources,rows,policy,generate,progress){
+function fieldPlan(policy){
   const section=sectionPolicy(policy);
   const instruction=section?.instruction||policy;
   const spec=parseFields(instruction)||parseExclusive(instruction);
+  return {section,spec};
+}
+async function applyPolicy(sources,rows,policy,generate,progress,{section,spec}=fieldPlan(policy)){
   if(spec){
     const scopedRows=section?rows.filter(row=>row.part===section.part):rows;
     const scopedSources=section?{[section.part]:sources[section.part]}:sources;
@@ -163,7 +166,7 @@ async function applyPolicy(sources,rows,policy,generate,progress){
 }
 function mergeChanges(rows,changes,only,unlocated,knownFields=false){
   const scoped=only&&(knownFields||changes.some(r=>r.suggest));
-  if(scoped)for(const r of rows){r.suggest=false;r.scopeNote='限定范围外，建议保留';}
+  if(scoped)for(const r of rows){r.suggest=false;r.scopeNote=r.customerCheck?'':'限定范围外，建议保留';}
   let next=rows.reduce((max,r)=>Math.max(max,r.id),0)+1;
   for(const c of changes.filter(c=>!c.suggest&&wholePassage(c.basis))){
     for(const r of rows){
@@ -183,4 +186,4 @@ function mergeChanges(rows,changes,only,unlocated,knownFields=false){
   }
   return {matches:changes.length,scoped,emptyScope:only&&!scoped,unlocated};
 }
-module.exports={applyPolicy};
+module.exports={applyPolicy,fieldPlan};

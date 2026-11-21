@@ -70,11 +70,17 @@ function copyFindings(review,text){
   for(const {start,end} of allowed)coverage[start]=Math.max(coverage[start],end);
   for(let i=1;i<coverage.length;i++)coverage[i]=Math.max(coverage[i],coverage[i-1]);
   const findings=[];
-  const values=new Set(review.rows.filter(r=>r.decision==='mask').map(r=>r.value));
-  for(const value of values){
+  const watched=new Map();
+  for(const r of review.rows){
+    if(r.decision!=='mask'&&!r.customerCheck)continue;
+    if(!watched.has(r.value))watched.set(r.value,new Set());
+    watched.get(r.value).add(r.customerCheckPart||'all');
+  }
+  for(const [value,parts] of watched){
     for(let pos=text.indexOf(value);pos!==-1;pos=text.indexOf(value,pos+1)){
       if(coverage[pos]>=pos+value.length)continue;
       const section=sections.find(s=>pos>=s.start&&pos<s.end);
+      if(section&&!parts.has('all')&&!parts.has(section.part))continue;
       findings.push({start:pos,end:pos+value.length,value,part:section?.part||'draft'});
     }
   }

@@ -84,7 +84,8 @@ function render(){
     const meta=(r.part==='prompt'?'提示词':'正文')+' · 第 '+(t.slice(0,r.start).split('\n').length)+' 行 · '+r.origin;
     left.append(el('small',meta));
     if(r.basis||r.scopeNote)left.append(el('small',r.basis?'按你的要求「'+r.basis+'」':r.scopeNote));
-    if(r.uncertain&&r.basis)left.append(el('small','用途待核对，请根据上下文决定是否替换。'));
+    if(r.customerCheck)left.append(el('strong',r.customerCheck));
+    else if(r.uncertain&&r.basis)left.append(el('small','用途待核对，请根据上下文决定是否替换。'));
     context.append(document.createTextNode(t.slice(Math.max(0,r.start-35),r.start)),el('mark',r.value),document.createTextNode(t.slice(r.end,r.end+35)));
     left.append(context,el('small','建议'+(r.suggest?'替换为 '+review.code(r):'保留原文')+' · '+(r.decision===null?'待核对':r.decision==='mask'?'已选替换':'已选保留')));
     const actions=el('div');actions.className='buttons';
@@ -98,7 +99,7 @@ function render(){
       };actions.append(s);
     }
     for(const [decision,label] of [['mask','替换'],['keep','保留原文']]){
-      const b=el('button',label);b.dataset.action=decision;b.setAttribute('aria-pressed',r.decision===decision);
+      const b=el('button',r.customerCheck?(decision==='mask'?'作为客户替换':'确认保留此处'):label);b.dataset.action=decision;b.setAttribute('aria-pressed',r.decision===decision);
       b.onclick=()=>{if(r.decision===decision||!discardDraft())return;r.decision=decision;syncDraft();render();};
       actions.append(b);
     }
@@ -215,7 +216,7 @@ function prepareOutbound(){
     const area={body:'正文',prompt:'提示词',draft:'最终稿'}[issue.part],t=ui.draft.value;
     ui.issueText.textContent=area+'第 '+(checkedIssues+1)+' / '+findings.length+' 处待复查：'+
       t.slice(Math.max(0,issue.start-24),issue.start)+'〈'+issue.value+'〉'+t.slice(issue.end,issue.end+24);
-    say('最终稿含已选替换的原文，请修改或逐处确认允许发送。',true);return null;
+    say('最终稿中还有未确认可发送的原文，请修改或逐处确认。',true);return null;
   }
   if(!outgoing){
     const name=ui.filename.textContent==='导入材料'?'粘贴材料':ui.filename.textContent;

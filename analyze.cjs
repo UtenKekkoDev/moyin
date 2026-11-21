@@ -1,6 +1,7 @@
 const rules = require('./rules.cjs');
 const {withModel} = require('./model.cjs');
-const {applyPolicy} = require('./policy.cjs');
+const {applyPolicy,fieldPlan} = require('./policy.cjs');
+const {companyEvidence,reviewCompany} = require('./company-roles.cjs');
 const {applyVocabulary} = require('./vocabulary.cjs');
 const labels = ['人名','客户简称','客户全称','内部代号'];
 const textType={type:'string'};
@@ -118,6 +119,9 @@ async function analyze(sources,signal,progress,policy='',onPolicy=()=>{},vocabul
           terms.set(value,{value,type:'人员',role:'',origin:'提示词人名补查'});
       }
     }
+    const plan=fieldPlan(policy.trim());
+    const customer=plan.spec?.directives;
+    const evidence=customer?.get('客户')?.mask||customer?.get('客户全称')?.mask?companyEvidence(sources,terms):null;
     for(const term of [...terms.values()]){
       if(term.type!=='客户'||!/(?:有限公司|股份公司|集团公司)$/u.test(term.value))continue;
       term.role='full';
@@ -227,7 +231,9 @@ async function analyze(sources,signal,progress,policy='',onPolicy=()=>{},vocabul
     }
     if(policy.trim()){
       progress('本地模型正在理解本次脱敏要求…');
-      onPolicy(await applyPolicy(sources,rows,policy.trim(),generate,progress));
+      const part=plan.section?.part;
+      if(evidence)for(const row of rows)if(!part||row.part===part)reviewCompany(row,evidence,part);
+      onPolicy(await applyPolicy(sources,rows,policy.trim(),generate,progress,plan));
     }
     return rows;
   });

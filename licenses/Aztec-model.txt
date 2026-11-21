@@ -1,0 +1,6 @@
+Model: jsbaicenter/Aztec-Coder-4B (based on Qwen3.5-4B).
+Model card and license: https://huggingface.co/jsbaicenter/Aztec-Coder-4B
+Quantization: mradermacher/Aztec-Coder-4B-GGUF, Q4_K_M.
+Source: https://huggingface.co/mradermacher/Aztec-Coder-4B-GGUF/tree/488fa00b1e01fc00965b4467e6e592a78316ebb4
+SHA-256: d3a654bc04d48fbba8172a24e76fc91ae67f28f63a250988a243b433a218673f
+Apache License 2.0 text: Qwen-LICENSE.txt

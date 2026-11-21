@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="zh-CN" translate="no"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>墨隐 · 文件涂黑</title><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="./workspace.css"><script type="module" src="./workspace.mjs"></script></head>
+<body><header><div class="bar"><div class="brand">墨隐<span>文件脱敏</span></div><a href="/">返回 Word 工作台</a></div></header>
+<main><section class="intro"><div><h1>文件涂黑</h1><p>在本机核对敏感位置，导出一份可分享的副本。</p></div></section>
+<section class="panel"><div class="inside">
+<label class="field first" for="file">选择原始文件</label><input type="file" id="file" accept=".pdf,.txt,.md,.markdown"><small>PDF 最多 25 MB、60 页。TXT 和 Markdown 支持 UTF-8 文本，最多 6 万字符。</small>
+<label class="field" for="policy">本地脱敏要求（选填）</label><textarea id="policy" rows="2" maxlength="1000" placeholder="例如：隐去客户报价，保留交付日期。"></textarea>
+<div class="line"><button id="detect" class="primary" disabled>用本地 Aztec-Coder-4B 查找候选</button><button id="clear" disabled>清空材料</button></div><p role="status" id="status">选择文件后，可使用模型识别或手动补标。</p></div></section>
+<div id="workspace" hidden>
+<section class="panel"><div class="panelTitle"><h2>原文与遮盖位置</h2><span id="sourceInfo"></span></div><div class="inside">
+<div id="pagePanel" hidden>
+<div class="line"><button id="prev">上一页</button><span id="page"></span><button id="next">下一页</button><button id="undo">撤回本页最后一个遮盖</button></div>
+<p id="hint">直接在页面上拖框。框好后请检查文字笔画、签章和图片是否完全盖住。</p>
+<div id="sheet"><canvas id="canvas" aria-label="PDF 页面，可拖动框选敏感区域"></canvas></div>
+<div class="line"><label><input type="checkbox" id="checkedPage"> 已核对本页全部可见内容</label><span id="reviewCount"></span></div>
+</div>
+<div id="textPanel" hidden><label for="source">原文</label><textarea id="source" rows="9" readonly></textarea><button id="mark">将所选文字加入遮盖</button><label class="field" for="preview">导出预览</label><textarea id="preview" rows="7" readonly></textarea></div>
+</div></section>
+<section class="panel"><div class="panelTitle"><h2>逐处核对</h2><span id="pending"></span></div><div class="inside"><p id="rowHelp"></p><ol id="rows"></ol></div></section>
+<section class="panel"><div class="panelTitle"><h2>导出副本</h2></div><div class="inside">
+<label><input type="checkbox" id="counts"> 显示被隐藏的字符数</label><small id="countHelp"></small>
+<label id="wholeCheck"><input type="checkbox" id="checkedText"> 我已核对最终文本</label>
+<div class="line"><button id="save" class="primary" disabled>导出脱敏副本</button></div></div></section>
+</div></main></body></html>

@@ -1,0 +1,8 @@
+/runtime/
+/models/
+/本机统计/
+/dist/
+*.gguf
+.env
+.env.*
+*.log

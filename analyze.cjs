@@ -3,6 +3,7 @@ const {withModel} = require('./model.cjs');
 const {applyPolicy,fieldPlan} = require('./policy.cjs');
 const {companyEvidence,reviewCompany} = require('./company-roles.cjs');
 const {applyVocabulary} = require('./vocabulary.cjs');
+const {values}=require('./fields.cjs');
 const labels = ['人名','客户简称','客户全称','内部代号'];
 const textType={type:'string'};
 const list = items=>({type:'array',items});
@@ -305,6 +306,17 @@ async function analyze(sources,signal,progress,policy='',onPolicy=()=>{},vocabul
       if(evidence)for(const row of rows)if(!part||row.part===part)reviewCompany(row,evidence,part);
       if(plan.spec?.directives.get('人员')?.mask)reviewNamedPeople(sources,rows);
       onPolicy(await applyPolicy(sources,rows,policy.trim(),generate,progress,plan));
+    }
+    // The inventory covers both sections even for an empty or section-only policy.
+    // Attach to existing decisions by occurrence, never by the spelling of a value.
+    const at=(r)=>r.part+':'+r.start+':'+r.end;
+    const positions=new Map(rows.map(r=>[at(r),r]));
+    let next=rows.reduce((max,r)=>Math.max(max,r.id),0)+1;
+    for(const {part,start,end,value,family} of values(sources)){
+      const existing=positions.get(at({part,start,end}));
+      if(existing){existing.numericFamily=family;continue;}
+      rows.push({id:next++,part,start,end,value,numericFamily:family,type:family==='money'?'金额':'时间',
+        role:'',owner:'',origin:'原文数值核对',suggest:false,inventoryOnly:true});
     }
     return rows;
   });

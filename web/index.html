@@ -31,8 +31,10 @@
 <section class="panel" id="reviewPanel" tabindex="-1" aria-label="逐处核对" hidden><div class="panelTitle"><h2>逐处核对</h2><span class="state" id="count"></span></div>
 <div class="inside"><p id="policyNote" hidden></p><details id="aliasBox"><summary>客户全称与简称</summary><div id="aliasList"></div></details>
 <div class="buttons"><button id="editScope" hidden>修改脱敏要求</button><button id="keepOutside" hidden>确认保留范围外位置</button><button id="undoOutside" hidden>撤销合并保留</button></div>
-<div class="navrow"><label>显示 <select id="filter"><option value="all">全部位置</option><option value="pending">待核对位置</option><option value="policy">按本次要求识别</option><option value="outside" hidden>可合并保留的位置</option><option value="attention">需要重点核对</option><option value="dictionary">来自本机词表</option></select></label><span><button id="prev">上一页</button> <span id="pageNo"></span> <button id="next">下一页</button></span></div>
-<ol id="rows" class="positions"></ol><a class="backPreview" href="#previewPanel">返回对外稿预览 ↑</a></div></section>
+<div id="rows">
+<section id="numericOverview" aria-labelledby="numericTitle" hidden><h3 id="numericTitle">已识别金额与时长</h3><div id="numberGroups"></div></section>
+<div class="navrow"><label>其他位置 <select id="filter"><option value="all">全部位置</option><option value="pending">待核对位置</option><option value="policy">按本次要求识别</option><option value="outside" hidden>可合并保留的位置</option><option value="attention">需要重点核对</option><option value="dictionary">来自本机词表</option></select></label><span><button id="prev">上一页</button> <span id="pageNo"></span> <button id="next">下一页</button></span></div>
+<ol id="otherRows" class="positions"></ol><small id="noOther" hidden>没有其他匹配位置，遗漏内容可选中原文补标。</small></div><a class="backPreview" href="#previewPanel">返回对外稿预览 ↑</a></div></section>
 <section class="panel" id="returnPanel" hidden><div class="panelTitle"><h2>汇报回填</h2></div><div class="inside">
 <label class="field first" for="returnVersion">对外稿版本</label><select id="returnVersion"><option value="">按返回稿号匹配</option></select>
 <small>代号表仅在当前页面有效。请在刷新或关闭页面前完成回填。</small>

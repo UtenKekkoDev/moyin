@@ -25,7 +25,7 @@ function invalidate(){
   resetOutbound();
   window.clearReturn?.();
   version++;review=null;draftEdited=false;ui.checked.checked=false;ui.draft.value='';page=0;
-  ui.editScope.hidden=ui.policyNote.hidden=true;ui.policyNote.textContent='';ui.rows.replaceChildren();ui.aliasList.replaceChildren();controls();
+  ui.editScope.hidden=ui.policyNote.hidden=true;ui.policyNote.textContent='';ui.otherRows.replaceChildren();ui.numberGroups.replaceChildren();ui.aliasList.replaceChildren();controls();
 }
 function discardDraft(){return !draftEdited||confirm('此操作将根据核对结果重新生成预览，覆盖已编辑的最终文本。继续？');}
 function syncDraft(){resetOutbound();window.clearReturn?.();draftEdited=false;ui.checked.checked=false;ui.draft.value=review.output().draft;controls();}
@@ -64,7 +64,7 @@ function aliasPanel(){
   }
 }
 function render(){
-  const source=review.sources;aliasPanel();
+  aliasPanel();renderNumbers();
   const outside=review.rows.filter(r=>review.canGroupKeep(r));
   const remaining=outside.filter(r=>r.decision===null).length;
   ui.keepOutside.hidden=!remaining;
@@ -74,6 +74,7 @@ function render(){
   if(!outside.length&&ui.filter.value==='outside')ui.filter.value='all';
   ui.count.textContent='已核对 '+(review.rows.length-pending())+' / '+review.rows.length+' 处';
   const visible=review.rows.filter(r=>{
+    if(r.numericFamily)return false;
     switch(ui.filter.value){
       case 'pending':return r.decision===null;
       case 'policy':return !!r.basis;
@@ -85,15 +86,37 @@ function render(){
   });
   const pages=Math.max(1,Math.ceil(visible.length/PAGE));page=Math.max(0,Math.min(page,pages-1));
   ui.pageNo.textContent=(page+1)+' / '+pages;ui.prev.disabled=page===0;ui.next.disabled=page===pages-1;
-  ui.rows.replaceChildren();
-  for(const r of visible.slice(page*PAGE,(page+1)*PAGE)){
+  ui.otherRows.replaceChildren(...visible.slice(page*PAGE,(page+1)*PAGE).map(renderRow));
+  ui.noOther.hidden=visible.length>0;
+  controls();
+}
+function renderNumbers(){
+  const numbers=review.rows.filter(r=>r.numericFamily);
+  ui.numericOverview.hidden=!numbers.length;
+  ui.numberGroups.replaceChildren();
+  if(!numbers.length)return;
+  const groups={attention:[],mask:[],keep:[]};
+  for(const r of numbers){
+    const group=r.decision??(r.uncertain?'attention':r.suggest?'mask':'keep');
+    groups[group].push(r);
+  }
+  for(const [key,label] of [['attention','待核'],['mask','建议遮盖'],['keep','建议保留']]){
+    const group=el('section');group.className='numberGroup '+key;
+    group.append(el('h4',label+' · '+groups[key].length+' 处'));
+    const list=el('ol');list.className='positions';
+    list.append(...groups[key].map(renderRow));group.append(list);ui.numberGroups.append(group);
+  }
+}
+function renderRow(r){
+    const source=review.sources;
     const row=el('li');row.dataset.id=r.id;
     const t=source[r.part],left=el('div'),context=el('p');context.className='context';
     const meta=(r.part==='prompt'?'提示词':'正文')+' · 第 '+(t.slice(0,r.start).split('\n').length)+' 行 · '+r.origin;
     left.append(el('small',meta));
     if(r.basis||r.scopeNote)left.append(el('small',r.basis?'按你的要求「'+r.basis+'」':r.scopeNote));
     if(r.customerCheck)left.append(el('strong',r.customerCheck));
-    else if(r.uncertain&&r.basis)left.append(el('small','用途待核对，请根据上下文决定是否替换。'));
+    else if(r.numericFamily==='money'&&r.uncertain&&!r.suggest&&r.decision===null)left.append(el('strong',/报价|售价|对客/.test(r.basis||'')?'预览暂留原文，请核实是否属于要遮的报价。':'预览暂留原文，请核实是否属于本次要遮的金额。'));
+    else if(r.uncertain&&r.basis&&r.decision===null)left.append(el('small','用途待核对，请根据上下文决定是否替换。'));
     context.append(document.createTextNode(t.slice(Math.max(0,r.start-35),r.start)),el('mark',r.value),document.createTextNode(t.slice(r.end,r.end+35)));
     left.append(context,el('small','建议'+(r.suggest?'替换为 '+review.code(r):'保留原文')+' · '+(r.decision===null?'待核对':r.decision==='mask'?'已选替换':'已选保留')));
     const actions=el('div');actions.className='buttons';
@@ -108,13 +131,11 @@ function render(){
     }
     for(const [decision,label] of [['mask','替换'],['keep','保留原文']]){
       const b=el('button',r.customerCheck?(decision==='mask'?'作为客户替换':'确认保留此处'):label);b.dataset.action=decision;b.setAttribute('aria-pressed',r.decision===decision);
-      b.onclick=()=>{if((r.decision===decision&&!r.groupKept)||!discardDraft())return;r.groupKept=false;r.decision=decision;syncDraft();render();};
+      b.onclick=()=>{if((r.decision===decision&&!r.groupKept)||!discardDraft())return;r.groupKept=false;r.decision=decision;syncDraft();render();
+        ui.rows.querySelector('[data-id="'+r.id+'"] [data-action="'+decision+'"]')?.focus({preventScroll:true});};
       actions.append(b);
     }
-    row.append(left,actions);ui.rows.append(row);
-  }
-  if(!visible.length)ui.rows.append(el('p',review.rows.length?'当前筛选没有匹配位置。':'没有识别到候选。请核对原文，可选中文字补标。'));
-  controls();
+    row.append(left,actions);return row;
 }
 ui.prev.onclick=()=>{page--;render();};ui.next.onclick=()=>{page++;render();};ui.filter.onchange=()=>{page=0;render();};
 ui.editScope.onclick=()=>{ui.policy.focus();ui.policy.scrollIntoView({block:'center'});};

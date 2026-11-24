@@ -360,6 +360,14 @@ function correctRole(c,source,spec){
 
 async function fieldMatches(sources,rows,spec,policy,generate,progress,referenceBody=sources.body){
   const candidates=fieldCandidates(sources,spec);
+  const price=spec.directives.get('price');
+  const dualMoney=process.env.MOYIN_DUAL_MONEY!=='0'&&
+    ['price','supplierPrice','cost','budget','lodging','other'].some(key=>spec.directives.has(key));
+  const roleNames={'延期':'delay','一般时长':'duration','客户报价':'price','采购成本':'cost','其他金额':'other'};
+  function restricted(role,c){
+    return role==='price'&&(price?.recipient||price?.issuedOnly||price?.preDealOnly)
+      ?limitedQuote(c,sources[c.part],price):role;
+  }
   // Keep explicit declarations and user vocabulary authoritative. Model-only
   // entity guesses can be superseded by a value with clear field semantics.
   const guesses=new Map();
@@ -377,8 +385,11 @@ async function fieldMatches(sources,rows,spec,policy,generate,progress,reference
       r.suggest=false;r.uncertain=true;
     }
   }
-  for(const c of candidates)c.role=correctRole(c,sources[c.part],spec);
-  const unclear=candidates.filter(c=>!c.role);
+  for(const c of candidates)c.role=restricted(correctRole(c,sources[c.part],spec),c);
+  // Model output can depend on batch order. Use the validated body-first order
+  // for the dual pass regardless of the caller's source object insertion order.
+  const unresolved=candidates.filter(c=>!c.role);
+  const unclear=dualMoney?[...unresolved.filter(c=>c.part==='body'),...unresolved.filter(c=>c.part!=='body')]:unresolved;
   const bodyEvidence=(referenceBody||'').split(/[。；;！？\n]/u).filter(Boolean);
   for(let i=0;i<unclear.length;){
     progress('本地模型正在核对金额和时长在本句中的用途…');
@@ -403,12 +414,18 @@ async function fieldMatches(sources,rows,spec,policy,generate,progress,reference
     });
     const instruction=time?'只判〔〕内时长所衡量的事件。从原承诺的时点到实际交付的差额，判“延期”；从开始加工、运输、等待到完成的历时，判“一般时长”。句里提到别的事件晚了，不改变本处的用途。写作提示词省略事件时按正文线索匹配动作。无法确定所指事件选“不确定”。'
       :'逐项判断〔〕里这个数值在本处的业务用途。延期是比原计划延后，正常用时或提前属于一般时长。对客户的销售价格才属于客户报价，垫付款、材料费或财务往来按其自身用途判断。独立阅读每一处；证据不足选“不确定”。';
-    const raw=await generate(instruction,JSON.stringify({位置:data}),{type:'object',properties,required:Object.keys(properties),additionalProperties:false});
-    for(const [j,c] of batch.entries())c.role=({'延期':'delay','一般时长':'duration','客户报价':'price','采购成本':'cost','其他金额':'other'})[raw[j+1]]||'unknown';
-  }
-  const price=spec.directives.get('price');
-  if(price?.recipient||price?.issuedOnly||price?.preDealOnly){
-    for(const c of candidates)if(c.role==='price')c.role=limitedQuote(c,sources[c.part],price);
+    const payload=JSON.stringify({位置:data});
+    const schema={type:'object',properties,required:Object.keys(properties),additionalProperties:false};
+    const raw=await generate(instruction,payload,schema);
+    const strict=!time&&dualMoney?await generate(instruction+'\n'+moneyBoundary,payload,schema):null;
+    for(const [j,c] of batch.entries()){
+      c.role=restricted(roleNames[raw[j+1]]||'unknown',c);
+      if(!strict)continue;
+      const second=restricted(roleNames[strict[j+1]]||'unknown',c);
+      const mask=role=>!!spec.directives.get(role)?.mask;
+      c.crossCheck=mask(c.role)!==mask(second)||
+        (c.role==='unknown'||second==='unknown')&&!!price?.mask;
+    }
   }
   const matches=[];
   const targeted=new Set(candidates.filter(c=>spec.directives.get(c.role)?.mask).map(c=>c.value));
@@ -440,11 +457,12 @@ async function fieldMatches(sources,rows,spec,policy,generate,progress,reference
     }
     const directive=spec.directives.get(c.role);
     const fallback=spec.directives.get(c.family==='time'?'delay':'price');
-    const uncertain=c.role==='unknown'&&fallback?.mask;
+    const uncertain=c.crossCheck||c.role==='unknown'&&fallback?.mask;
     if(!directive&&!uncertain&&!targeted.has(c.value))continue;
     matches.push({part:c.part,start:c.start,end:c.end,value:c.value,type:c.family==='time'?'时间':'金额',
-      suggest:directive?.mask??false,basis:(directive||fallback)?.basis||policy,uncertain:!!uncertain});
+      suggest:!uncertain&&(directive?.mask??false),basis:(directive||fallback)?.basis||policy,uncertain:!!uncertain});
   }
   return matches;
 }
+const moneyBoundary='当前任务是判断括号内金额本身。只有本方向客户提出的销售价格才标客户报价。供应商给我们的来价、采购进价归采购成本；已收已付、旧账、押金、退款归其他金额；邮资、工费、印刷费等具体开销按成本或其他金额。若该费用本身是本次报给客户的服务价格，仍按客户报价。附近出现“报价”、金额相同或列在同一行，都不能把别项的用途传给当前这笔。';
 module.exports={parseFields,fieldCandidates,fieldMatches,values};

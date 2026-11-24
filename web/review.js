@@ -14,7 +14,7 @@ class Review {
       if(!r.value||r.start<0||r.end>this.sources[r.part].length||this.sources[r.part].slice(r.start,r.end)!==r.value)throw Error('候选位置与原文不一致，请重新识别。');
     }
     for(const r of this.rows.filter(r=>r.role==='full'))this.code(r);
-    for(const r of this.rows)this.code(r);
+    for(const r of this.rows)if(!r.inventoryOnly)this.code(r);
   }
   code(r) {
     const type=r.role==='alias'&&r.ambiguous&&!r.owner?'待核客户':r.type;
@@ -54,8 +54,15 @@ class Review {
     if(!value.trim())throw Error('请先在原文中选中要补标的文字。');
     const role=label==='客户全称'?'full':label==='客户简称'?'alias':'';
     const type=role?'客户':label;
-    this.rows=this.rows.filter(r=>r.part!==part||r.end<=start||r.start>=end);
+    const overlaps=r=>r.part===part&&r.end>start&&r.start<end;
+    const exact=this.rows.find(r=>r.numericFamily&&r.part===part&&r.start===start&&r.end===end);
+    // Keep other recognized spans visible when an employee redefines a boundary.
+    for(const r of this.rows.filter(r=>r.numericFamily&&overlaps(r)&&r!==exact)){
+      r.suggest=false;r.decision=null;r.groupKept=false;
+    }
+    this.rows=this.rows.filter(r=>!overlaps(r)||(r.numericFamily&&r!==exact));
     const row={part,start,end,value,role,type,origin:'人工补标',owner:'',ambiguous:false,suggest:true,decision:'mask',id:this.next++};
+    if(exact)row.numericFamily=exact.numericFamily;
     this.rows.push(row);
     const available=this.fullNames();
     for(const r of this.rows)if(r.owner&&!available.includes(r.owner)){r.owner='';r.decision=null;r.groupKept=false;}

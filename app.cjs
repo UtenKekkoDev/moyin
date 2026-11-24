@@ -7,10 +7,22 @@ const {stop}=require('./model.cjs');
 const formats=require('./formats/serve.cjs');
 const {validateVocabulary}=require('./vocabulary.cjs');
 const {recordRun}=require('./metrics.cjs');
+const {prepareRule,confirmed}=require('./rule-card.cjs');
+
+async function readRequest(req,limit){
+  let bytes=0;const buffers=[];
+  for await(const chunk of req){
+    bytes+=chunk.length;if(bytes>limit)throw Error('输入超出上限。');
+    buffers.push(chunk);
+  }
+  const data=JSON.parse(Buffer.concat(buffers).toString('utf8'));
+  if(data.policy!==undefined&&(typeof data.policy!=='string'||data.policy.length>1000))throw Error('本地脱敏要求最多 1000 个字符。');
+  return data;
+}
 
 const assets=new Set(['index.html','style.css','docx.js','sample.js','review.js','ui.js','review.css','text-import.js']);
 let active=null,origin;
-assets.add('profile-return.js');
+assets.add('profile-return.js');assets.add('rule-card.js');
 assets.add('outbound.js');
 assets.add('moyin-32.png');
 assets.add('moyin-96.png');
@@ -27,26 +39,33 @@ const server=http.createServer(async(req,res)=>{
     fs.createReadStream(path.join(__dirname,'web',file)).on('error',()=>res.destroy()).pipe(res);
     return;
   }
-  if(req.method!=='POST'||req.url!=='/analyze'||req.headers.origin!==origin||req.headers['x-moyin']!=='review'){
+  if(req.method!=='POST'||!['/analyze','/rule-preview'].includes(req.url)||req.headers.origin!==origin||req.headers['x-moyin']!=='review'){
     res.writeHead(403).end();return;
+  }
+  if(req.url==='/rule-preview'){
+    try{
+      const {policy=''}=await readRequest(req,8192);
+      res.setHeader('Content-Type','application/json; charset=utf-8');
+      res.end(JSON.stringify(prepareRule(policy).card));
+    }catch(e){res.writeHead(400).end(e.message);}
+    return;
   }
   if(active){res.writeHead(409).end('已有一份材料正在识别，请稍后再试。');return;}
   const job=new AbortController();active=job;
   let started,outcome='failed';
   res.once('close',()=>job.abort());
   try {
-    let bytes=0;const buffers=[];
-    for await(const chunk of req){bytes+=chunk.length;if(bytes>550000)throw Error('输入超出上限。');buffers.push(chunk);}
-    const {body,prompt,policy='',vocabulary=[]}=JSON.parse(Buffer.concat(buffers).toString('utf8'));
+    const {body,prompt,policy='',vocabulary=[],confirmation}=await readRequest(req,550000);
+    const {plan,card}=prepareRule(policy);
+    if(!confirmed(card,confirmation)){res.writeHead(412).end('请先确认本次规则。');return;}
     const dictionary=validateVocabulary(vocabulary);
-    if(typeof policy!=='string'||policy.length>1000)throw Error('本地脱敏要求最多 1000 个字符。');
     if(typeof body!=='string'||typeof prompt!=='string'||body.length>60000||prompt.length>10000||!(body+prompt).trim())throw Error('正文最多 6 万字符，提示词最多 1 万字符，至少填写一项。');
     started=performance.now();
     res.writeHead(200,{'Content-Type':'application/x-ndjson; charset=utf-8'});
     const send=e=>{if(!res.destroyed)res.write(JSON.stringify(e)+'\n');};
     send({progress:'正在本机加载 Aztec-Coder-4B…'});
     let policySummary;
-    const rows=await analyze({prompt,body},job.signal,msg=>send({progress:msg}),policy,s=>{policySummary=s;},dictionary);
+    const rows=await analyze({prompt,body},job.signal,msg=>send({progress:msg}),policy,s=>{policySummary=s;},dictionary,plan);
     send({result:rows,policySummary});res.end();
     outcome='completed';
   }catch(e){

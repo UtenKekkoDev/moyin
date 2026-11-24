@@ -80,7 +80,7 @@ function parseExclusive(policy){
   // A keep instruction referring to the same class may be an exception.
   const conflicts={price:/报价|价格|^金额$/,delay:/^(?:延期|延误)(?!原因)|^时长$/,budget:/预算|^金额$/,lodging:/住宿|^费用$|^金额$/,人员:/人名|姓名|收件人/,项目:/代号|项目名|版本名/,客户:/客户名|公司名|全称|简称/,客户全称:/公司名|全称/,客户简称:/简称/};
   for(const [key] of directives)if(keeps.some(k=>conflicts[key].test(k)))return null;
-  return {directives,exclusive,keptPeople};
+  return {directives,exclusive,keptPeople,retainedTerms:keeps};
 }
 // A section applies to the entire field selection only for a single explicit
 // instruction. Multi-clause exceptions must retain their original wording.

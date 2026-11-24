@@ -271,10 +271,12 @@ function values(sources,{separateSupplierQuotes=false}={}){
   }
   return found;
 }
+function actualDelayOnly(d){
+  return !!(d?.actualOnly||/(?:实际(?:发生)?|已经发生|已发生)(?:的)?延期/u.test(d?.basis||''));
+}
 function fieldCandidates(sources,spec){
   const candidates=values(sources,{separateSupplierQuotes:spec.directives.has('supplierPrice')});
-  const delayBasis=spec.directives.get('delay')?.basis||'';
-  const actualOnly=spec.directives.get('delay')?.actualOnly||/(?:实际(?:发生)?|已经发生|已发生)(?:的)?延期/u.test(delayBasis);
+  const actualOnly=actualDelayOnly(spec.directives.get('delay'));
   for(const c of candidates){
     if(c.role==='forecast'&&!actualOnly)c.role='delay';
     if(actualOnly&&c.family==='time'){
@@ -465,4 +467,4 @@ async function fieldMatches(sources,rows,spec,policy,generate,progress,reference
   return matches;
 }
 const moneyBoundary='当前任务是判断括号内金额本身。只有本方向客户提出的销售价格才标客户报价。供应商给我们的来价、采购进价归采购成本；已收已付、旧账、押金、退款归其他金额；邮资、工费、印刷费等具体开销按成本或其他金额。若该费用本身是本次报给客户的服务价格，仍按客户报价。附近出现“报价”、金额相同或列在同一行，都不能把别项的用途传给当前这笔。';
-module.exports={parseFields,fieldCandidates,fieldMatches,values};
+module.exports={parseFields,fieldCandidates,fieldMatches,values,actualDelayOnly};

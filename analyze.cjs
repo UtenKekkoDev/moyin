@@ -130,7 +130,7 @@ function reviewNamedPeople(sources,rows){
     if(direct.has(r)||personalReminder)Object.assign(r,{type:'人员',role:'',owner:'',ambiguous:false,suggest:true,origin:'人员角色核对'});
   }
 }
-async function analyze(sources,signal,progress,policy='',onPolicy=()=>{},vocabulary=[]){
+async function analyze(sources,signal,progress,policy='',onPolicy=()=>{},vocabulary=[],plan=fieldPlan(policy.trim())){
   const text=[sources.prompt,sources.body].filter(Boolean).join('\n');
   const terms=new Map();
   for(const r of rules(text)){
@@ -160,7 +160,6 @@ async function analyze(sources,signal,progress,policy='',onPolicy=()=>{},vocabul
           terms.set(value,{value,type:'人员',role:'',origin:'提示词人名补查'});
       }
     }
-    const plan=fieldPlan(policy.trim());
     const projectScope=!!plan.spec?.directives.get('项目')?.mask;
     const workNames=new Set();
     if(projectScope)for(const m of text.matchAll(/(?:改造|迁移|升级|改版|扩建)(?:工程)?代号[为是：:\s]*[“「"]([^”」"\r\n]{1,32})[”」"]/gu)){

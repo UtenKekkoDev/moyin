@@ -2,7 +2,7 @@
 <html lang="zh-CN" translate="no"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="icon" href="/moyin-32.png" type="image/png" sizes="32x32"><title>墨隐 · 本地脱敏工作台</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="review.css">
 <script defer src="text-import.js"></script>
-<script defer src="sample.js"></script><script defer src="docx.js"></script><script defer src="review.js"></script><script defer src="outbound.js"></script><script defer src="ui.js"></script><script defer src="profile-return.js"></script></head>
+<script defer src="sample.js"></script><script defer src="docx.js"></script><script defer src="review.js"></script><script defer src="outbound.js"></script><script defer src="ui.js"></script><script defer src="rule-card.js"></script><script defer src="profile-return.js"></script></head>
 <body><header><div class="bar"><div class="brand"><img src="/moyin-96.png" alt="" width="32" height="32">墨隐</div><nav aria-label="工作区"><span aria-current="page">文档脱敏</span><a href="/formats/" target="_blank" rel="noopener" aria-label="文件涂黑，在新标签页打开">文件涂黑 ↗</a></nav><span class="offline">本机运行 <b>Aztec-Coder-4B</b></span></div></header>
 <main><section class="intro"><div><h1>文档脱敏工作台</h1><p>导入内部材料，核对正文与提示词，再复制对外稿。</p></div><button id="demo">载入模拟项目</button></section>
 <div class="workspace"><section class="panel"><div class="panelTitle"><h2>原始材料</h2><button id="clear" class="link">清空</button></div>
@@ -11,12 +11,21 @@
 <label class="field" for="prompt">写作提示词 <span>随稿发送</span></label><textarea rows="2" id="prompt" maxlength="10000" placeholder="希望外部 AI 怎样编辑这份材料？" spellcheck="false"></textarea>
 <label class="field" for="policy">本地脱敏要求（选填）</label><textarea rows="2" id="policy" maxlength="1000" placeholder="例如：隐去客户报价，保留采购成本和延期天数。" aria-describedby="policyHelp" spellcheck="false"></textarea>
 <small id="policyHelp">仅在本机使用。留空则使用默认识别。</small>
+<fieldset id="ruleTools"><legend>预设场景</legend>
+<div class="ruleButtons"><button id="pricePreset">隐藏对客报价</button><button id="bothPreset">隐藏对客报价及延期</button></div>
+<div id="ruleOptions" hidden><label><input type="checkbox" id="pickPrice">对客报价</label>
+<label><input type="checkbox" id="pickDelay">延期时长</label>
+<label>作用范围 <select id="ruleScope"><option value="both">正文和提示词</option><option value="body">仅正文</option><option value="prompt">仅提示词</option></select></label>
+<label id="recipientOption">报价受方 <input id="quoteRecipient" maxlength="10" placeholder="不限"></label>
+<label id="issuedOption"><input id="issuedOnly" type="checkbox">仅已报出</label>
+<label id="actualOption"><input id="actualOnly" type="checkbox">仅实际延期</label></div></fieldset>
+<section id="ruleCard" aria-live="polite" aria-label="规则确认" hidden></section>
 <details id="profileBox"><summary>本机词表与脱敏模板</summary>
 <label class="field" for="vocabulary">本次启用的词表</label><textarea id="vocabulary" rows="3" maxlength="30000" placeholder="客户 | 山岚包装有限公司 | 山岚，SL&#10;项目 | 石榴" spellcheck="false"></textarea>
 <small>每行一项，用竖线隔开类别、全称、可选客户简称。支持客户、人员、项目、机构、敏感内容。多个简称用逗号隔开。</small>
 <div class="buttons"><button id="saveProfile">导出要求和词表</button><label class="button" for="loadProfile">导入模板</label><input id="loadProfile" class="file" type="file" accept=".json"></div>
 <small>模板文件含原始词项，只在主动导出时保存到本机。导入后可以为当前材料单独修改。</small></details>
-<div class="actions"><button id="run" class="primary" disabled>开始本地识别</button><button id="cancel" hidden>取消识别</button></div>
+<div class="actions"><button id="run" class="primary" disabled>开始本地识别</button><button id="freeRun" hidden>仍按原话自由识别（回退路径）</button><button id="cancel" hidden>取消识别</button></div>
 <p role="status" id="status">Word 仅读取正文与普通表格。</p><div class="manual" id="manual" hidden><label for="manualType">补标选区</label><select id="manualType"><option>人员</option><option>客户全称</option><option>客户简称</option><option>项目</option><option>编号</option><option>金额</option><option>时间</option><option>机构</option><option>电话</option><option>邮箱</option><option>敏感内容</option></select><button id="add">替换选中文字</button><small>在上方原文或提示词中选中漏项，可只替换那一处。</small></div>
 </div></section>
 <section class="panel review" id="previewPanel" tabindex="-1" aria-label="对外稿预览"><div class="panelTitle"><h2>对外稿预览</h2><span class="state" id="reviewState" aria-live="polite">等待识别</span></div><div class="inside">

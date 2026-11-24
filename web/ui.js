@@ -3,13 +3,20 @@ const ui=Object.fromEntries([...document.querySelectorAll('[id]')].map(e=>[e.id,
 const PAGE=12;
 const snapshots=new Map();
 let outgoing=null, findings=null, checkedIssues=0,clearCount=0;
+let ruleCard=null;
 let review=null,task=null,version=0,page=0,manualPart='body',draftEdited=false,importing=false;
 const el=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e;};
 function say(text,error=false){ui.status.textContent=text;ui.status.classList.toggle('error',error);}
 function pending(){return review?.rows.filter(r=>r.decision===null).length??0;}
 function controls(){
   const busy=!!task||importing, done=!!review&&!pending();
-  ui.run.disabled=busy||!(ui.body.value.trim()||ui.prompt.value.trim());
+  const canStart=!busy&&!!(ui.body.value.trim()||ui.prompt.value.trim());
+  const needsRule=!!ui.policy.value.trim();
+  ui.run.disabled=!canStart||(needsRule&&ruleCard?.route!=='structured');
+  ui.run.hidden=needsRule&&ruleCard?.route==='fallback';
+  ui.run.textContent=needsRule?'确认规则并识别':'开始本地识别';
+  ui.freeRun.hidden=!needsRule||ruleCard?.route!=='fallback';
+  ui.freeRun.disabled=!canStart;ui.ruleTools.disabled=busy;
   ui.cancel.hidden=!task; ui.file.disabled=ui.demo.disabled=busy;
   ui.body.readOnly=ui.prompt.readOnly=ui.policy.readOnly=busy;
   ui.vocabulary.readOnly=ui.loadProfile.disabled=ui.saveProfile.disabled=busy;
@@ -22,6 +29,7 @@ function controls(){
   ui.reviewState.textContent=busy?'处理中':review?(pending()?'建议稿 · 待核对 '+pending()+' 处':(ui.checked.checked?'已核对':'可编辑最终文本')):'等待识别';
 }
 function invalidate(){
+  window.refreshRule?.();
   resetOutbound();
   window.clearReturn?.();
   version++;review=null;draftEdited=false;ui.checked.checked=false;ui.draft.value='';page=0;
@@ -200,14 +208,17 @@ ui.clear.onclick=()=>{
   task?.abort();ui.body.value=ui.prompt.value=ui.policy.value='';ui.filename.textContent='导入材料';ui.fileinfo.textContent='Word、TXT、Markdown · 单次最多 6 万字符';
   invalidate();say('本页已清空。');
 };
-ui.run.onclick=async()=>{
+ui.run.onclick=()=>startAnalysis(false);
+ui.freeRun.onclick=()=>startAnalysis(true);
+async function startAnalysis(fallback){
+  if(ui.policy.value.trim()&&ruleCard?.route!==(fallback?'fallback':'structured'))return;
   if(task||!discardDraft())return;
   let vocabulary;try{vocabulary=readVocabulary(ui.vocabulary.value);}catch(e){say(e.message,true);return;}
   if(review?.rows.some(r=>r.decision!==null)&&!confirm('重新识别会清除逐处核对记录。继续？'))return;
   invalidate();const token=version, controller=new AbortController();task=controller;
   const sources={prompt:ui.prompt.value,body:ui.body.value};controls();say('正在准备本地推理…');
   try{
-    const resp=await fetch('/analyze',{method:'POST',headers:{'Content-Type':'application/json','X-Moyin':'review'},body:JSON.stringify({...sources,policy:ui.policy.value,vocabulary}),signal:controller.signal});
+    const resp=await fetch('/analyze',{method:'POST',headers:{'Content-Type':'application/json','X-Moyin':'review'},body:JSON.stringify({...sources,policy:ui.policy.value,vocabulary,confirmation:ruleCard}),signal:controller.signal});
     if(!resp.ok)throw Error(resp.status===409?'上一份识别尚在结束，请稍后重试。':'本地服务未接受请求。');
     const reader=resp.body.pipeThrough(new TextDecoderStream()).getReader();
     let buf='',items,summary;

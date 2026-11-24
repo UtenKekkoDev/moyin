@@ -3,6 +3,8 @@
 #policyNote{margin:0 0 12px;padding:10px 14px;border-left:3px solid var(--pine);background:#f3f6ef;line-height:1.6}
 #numericOverview{margin:18px 0;border-bottom:1px solid var(--line);padding-bottom:8px}
 #numericOverview h3{margin:0 0 10px}.numberGroup{padding:8px 12px}.numberGroup h4{margin:4px 0}
+#ruleTools{margin:12px 0;border:1px solid var(--line);border-radius:6px}#ruleOptions,.ruleButtons{display:flex;gap:8px 14px;align-items:center;flex-wrap:wrap}#ruleOptions{margin-top:10px}#quoteRecipient{width:7em}
+#ruleCard{margin-top:10px;border-inline-start:3px solid var(--pine);padding:10px 14px;background:#f3f6ef}#ruleCard dl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:8px 0 0}#ruleCard dd{margin:0;overflow-wrap:anywhere}#ruleCard p{margin:6px 0 0}
 .numberGroup.attention:has(li){background:#fff4d1;border-inline-start:4px solid #986600;border-radius:5px}
 .numberGroup.attention strong{color:#654700}
 #profileBox{margin-top:12px;padding:10px 12px;border:1px solid var(--line);border-radius:7px}#profileBox summary{cursor:pointer;font-weight:600}#profileBox .buttons{justify-content:flex-start;margin:8px 0}

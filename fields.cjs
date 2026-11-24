@@ -330,6 +330,34 @@ function limitedQuote(c,source,directive){
   return 'price';
 }
 
+const supplier='(?:供方|供应商|供货方|厂家|上游|[\\p{Script=Han}]{1,7}(?:工厂|厂|商|行))';
+const inward=[
+  /(?:对方|供方|厂家|供应商)(?:也|这次)?(?:向|给)(?:我方|我司|我们|采购(?:部)?)(?:报(?:价|了|出)?)(?:每[张版套个件批盒袋])?$/u,
+  /报给(?:我方|我司|我们|采购(?:部)?)(?:的|是|为)?$/u,
+  new RegExp(supplier+'(?:的|给(?:我方|我们)(?:的)?)(?:开价|要价|供货价|报价)(?:[是为])?$','u'),
+  new RegExp(supplier+'(?:发来|送来)(?:的)?(?:供货报价[是为]?|每[件只个套张版包])$','u')
+];
+function correctRole(c,source,spec){
+  if(c.family!=='money'||c.role!=='price')return c.role;
+  const before=source.slice(Math.max(0,c.start-96),c.start);
+  const left=before.split(/[，,；;。！？\n|｜\t]/u).at(-1);
+  const right=source.slice(c.end,c.end+42).split(/[，,；;。！？\n|｜\t]/u)[0];
+  // Restrict contradiction checks to the current coordinated amount.
+  const limb=left.split(/以及|[和与]/u).at(-1);
+  if(/(?:不是|并非|并未|尚未|不要|不能|没有|不应|不按)[^，。]{0,12}$/u.test(limb))return c.role;
+  if(/^(?:的)?(?:修模|修理|维修|送样|印刷)账单|^(?:的)?(?:退押|退还押金)手续/u.test(right)&&
+     /(?:与|和|对照|比较|区分|、)\s*$/u.test(left))return 'other';
+  if(/(?:已(?:经)?付(?:掉)?|实(?:际)?付(?:掉)?)(?:的)?[\p{Script=Han}]{0,8}(?:费|邮资)$/u.test(limb)||
+     /(?:申请)?报销[^，。]{0,24}(?:样册|手册|资料)的(?:印刷费|印制费)$/u.test(limb))return 'other';
+  const incoming=inward.some(r=>r.test(limb))||
+    /(?:厂家|供应商|供方|上游)的$/u.test(limb)&&/^的?(?:报价单|开价|要价)/u.test(right)||
+    /^(?:是|为)(?:厂家|供方|供应商)(?:的)?(?:开价|要价|报价)/u.test(right)||
+    /^(?:又|并)(?:报了|报价)[\p{Script=Han}]{0,12}$/u.test(limb)&&
+      /(?:厂家|供应商|供方)[^。；;！？，,]{0,28}[，,]$/u.test(before.slice(0,-limb.length));
+  if(incoming)return spec.directives.has('supplierPrice')?'supplierPrice':'cost';
+  return c.role;
+}
+
 async function fieldMatches(sources,rows,spec,policy,generate,progress,referenceBody=sources.body){
   const candidates=fieldCandidates(sources,spec);
   // Keep explicit declarations and user vocabulary authoritative. Model-only
@@ -349,6 +377,7 @@ async function fieldMatches(sources,rows,spec,policy,generate,progress,reference
       r.suggest=false;r.uncertain=true;
     }
   }
+  for(const c of candidates)c.role=correctRole(c,sources[c.part],spec);
   const unclear=candidates.filter(c=>!c.role);
   const bodyEvidence=(referenceBody||'').split(/[。；;！？\n]/u).filter(Boolean);
   for(let i=0;i<unclear.length;){

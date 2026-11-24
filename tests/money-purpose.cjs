@@ -5,6 +5,9 @@ const {fieldMatches}=require('../fields.cjs');
 
 // [ ] marks the exact price spans in each text, including repeated numbers.
 const cases=[
+  '对方给我方报了每版72元；给客户的报价是[96元]。',
+  '对照[420元]的本次售价和420元的修模账单。',
+  '商家申请报销制作报价样册的印刷费96元。',
   '采购入账每套95元，门店报价每套[95元]。',
   '停车费42元，含停车费的对外报价为[42元]。',
   '先付货款620元，给客户的报价为[620元]。',

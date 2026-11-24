@@ -61,7 +61,10 @@ async function withModel(signal, work) {
       });
       if(!response.ok) throw Error('本机推理失败（HTTP '+response.status+'）。');
       const value=await response.json();
-      if(value.truncated||value.stop_type==='limit') throw Error('模型输入或输出达到长度上限，请将该材料分批处理。');
+      if(value.truncated||value.stop_type==='limit'){
+        const side=value.truncated?'输入':'输出';
+        throw Object.assign(Error('模型'+side+'达到长度上限，请将该材料分批处理。'),{code:'MODEL_LENGTH_LIMIT'});
+      }
       if(!['word','eos'].includes(value.stop_type)) throw Error('本机模型未完成推理。');
       return JSON.parse(value.content);
     };

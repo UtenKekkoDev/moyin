@@ -67,4 +67,5 @@ async function main(){
     }
   });
 }
-main().catch(e=>{console.error(e);process.exitCode=1;});
+module.exports={testCases,unpack,measure};
+if(require.main===module)main().catch(e=>{console.error(e);process.exitCode=1;});

@@ -31,12 +31,23 @@ class Review {
     return this.codes.get(key);
   }
   fullNames(){return [...new Set(this.rows.flatMap(r=>r.role==='full'?[r.value]:(r.dictionaryOwners||[])))];}
+  canGroupKeep(r){
+    return r.scopeExcluded===true&&!r.suggest&&!r.ambiguous&&!r.uncertain&&!r.customerCheck&&r.origin!=='人工补标';
+  }
+  keepOutside(){
+    for(const r of this.rows)if(r.decision===null&&this.canGroupKeep(r)){
+      r.decision='keep';r.groupKept=true;
+    }
+  }
+  undoOutside(){
+    for(const r of this.rows)if(r.groupKept){r.decision=null;r.groupKept=false;}
+  }
   bind(alias,name,id=null){
     if(name&&!this.fullNames().includes(name))throw Error('请选择材料中已识别的客户全称。');
     const selected=this.rows.filter(r=>r.role==='alias'&&r.value===alias&&(id===null||r.id===id));
     if(!selected.length)throw Error('没有找到简称。');
     if(id===null&&selected.some(r=>r.ambiguous))throw Error('多家客户共用此简称，请在各条记录上选择归属。');
-    for(const r of selected){r.owner=name;r.decision=null;}
+    for(const r of selected){r.owner=name;r.decision=null;r.groupKept=false;}
   }
   add(part,start,end,label) {
     const value=this.sources[part].slice(start,end);
@@ -47,7 +58,7 @@ class Review {
     const row={part,start,end,value,role,type,origin:'人工补标',owner:'',ambiguous:false,suggest:true,decision:'mask',id:this.next++};
     this.rows.push(row);
     const available=this.fullNames();
-    for(const r of this.rows)if(r.owner&&!available.includes(r.owner)){r.owner='';r.decision=null;}
+    for(const r of this.rows)if(r.owner&&!available.includes(r.owner)){r.owner='';r.decision=null;r.groupKept=false;}
     this.refresh();return row;
   }
   output() {
@@ -70,7 +81,8 @@ class Review {
         }else ranges.push({...r});
       }
       // Map explicitly kept spans only when the entire span survives masking.
-      const retains=rows.filter(r=>r.decision==='keep');let retainIndex=0;
+      // A group decision cannot exempt a matching sensitive value at copy time.
+      const retains=rows.filter(r=>r.decision==='keep'&&!r.groupKept);let retainIndex=0;
       function plain(end){
         while(retainIndex<retains.length&&retains[retainIndex].start<end){
           const r=retains[retainIndex++];

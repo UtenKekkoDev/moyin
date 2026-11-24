@@ -17,7 +17,7 @@
 <div class="buttons"><button id="saveProfile">导出要求和词表</button><label class="button" for="loadProfile">导入模板</label><input id="loadProfile" class="file" type="file" accept=".json"></div>
 <small>模板文件含原始词项，只在主动导出时保存到本机。导入后可以为当前材料单独修改。</small></details>
 <div class="actions"><button id="run" class="primary" disabled>开始本地识别</button><button id="cancel" hidden>取消识别</button></div>
-<p role="status" id="status">Word 仅读取正文与普通表格。</p><div class="manual" id="manual" hidden><label for="manualType">补标选区</label><select id="manualType"><option>人员</option><option>客户全称</option><option>客户简称</option><option>项目</option><option>编号</option><option>机构</option><option>电话</option><option>邮箱</option><option>敏感内容</option></select><button id="add">替换选中文字</button><small>在上方原文或提示词中选中漏项，可只替换那一处。</small></div>
+<p role="status" id="status">Word 仅读取正文与普通表格。</p><div class="manual" id="manual" hidden><label for="manualType">补标选区</label><select id="manualType"><option>人员</option><option>客户全称</option><option>客户简称</option><option>项目</option><option>编号</option><option>金额</option><option>时间</option><option>机构</option><option>电话</option><option>邮箱</option><option>敏感内容</option></select><button id="add">替换选中文字</button><small>在上方原文或提示词中选中漏项，可只替换那一处。</small></div>
 </div></section>
 <section class="panel review" id="previewPanel" tabindex="-1" aria-label="对外稿预览"><div class="panelTitle"><h2>对外稿预览</h2><span class="state" id="reviewState" aria-live="polite">等待识别</span></div><div class="inside">
 <div class="proof">
@@ -30,7 +30,8 @@
 </div></section></div>
 <section class="panel" id="reviewPanel" tabindex="-1" aria-label="逐处核对" hidden><div class="panelTitle"><h2>逐处核对</h2><span class="state" id="count"></span></div>
 <div class="inside"><p id="policyNote" hidden></p><details id="aliasBox"><summary>客户全称与简称</summary><div id="aliasList"></div></details>
-<div class="navrow"><label>显示 <select id="filter"><option value="all">全部位置</option><option value="pending">待核对位置</option><option value="policy">按本次要求识别</option><option value="attention">需要重点核对</option><option value="dictionary">来自本机词表</option></select></label><span><button id="prev">上一页</button> <span id="pageNo"></span> <button id="next">下一页</button></span></div>
+<div class="buttons"><button id="editScope" hidden>修改脱敏要求</button><button id="keepOutside" hidden>确认保留范围外位置</button><button id="undoOutside" hidden>撤销合并保留</button></div>
+<div class="navrow"><label>显示 <select id="filter"><option value="all">全部位置</option><option value="pending">待核对位置</option><option value="policy">按本次要求识别</option><option value="outside" hidden>可合并保留的位置</option><option value="attention">需要重点核对</option><option value="dictionary">来自本机词表</option></select></label><span><button id="prev">上一页</button> <span id="pageNo"></span> <button id="next">下一页</button></span></div>
 <ol id="rows" class="positions"></ol><a class="backPreview" href="#previewPanel">返回对外稿预览 ↑</a></div></section>
 <section class="panel" id="returnPanel" hidden><div class="panelTitle"><h2>汇报回填</h2></div><div class="inside">
 <label class="field first" for="returnVersion">对外稿版本</label><select id="returnVersion"><option value="">按返回稿号匹配</option></select>

@@ -25,7 +25,7 @@ function invalidate(){
   resetOutbound();
   window.clearReturn?.();
   version++;review=null;draftEdited=false;ui.checked.checked=false;ui.draft.value='';page=0;
-  ui.policyNote.hidden=true;ui.policyNote.textContent='';ui.rows.replaceChildren();ui.aliasList.replaceChildren();controls();
+  ui.editScope.hidden=ui.policyNote.hidden=true;ui.policyNote.textContent='';ui.rows.replaceChildren();ui.aliasList.replaceChildren();controls();
 }
 function discardDraft(){return !draftEdited||confirm('此操作将根据核对结果重新生成预览，覆盖已编辑的最终文本。继续？');}
 function syncDraft(){resetOutbound();window.clearReturn?.();draftEdited=false;ui.checked.checked=false;ui.draft.value=review.output().draft;controls();}
@@ -65,11 +65,19 @@ function aliasPanel(){
 }
 function render(){
   const source=review.sources;aliasPanel();
+  const outside=review.rows.filter(r=>review.canGroupKeep(r));
+  const remaining=outside.filter(r=>r.decision===null).length;
+  ui.keepOutside.hidden=!remaining;
+  ui.keepOutside.textContent='确认保留范围外的 '+remaining+' 处';
+  ui.undoOutside.hidden=!outside.some(r=>r.groupKept);
+  ui.filter.querySelector('[value="outside"]').hidden=!outside.length;
+  if(!outside.length&&ui.filter.value==='outside')ui.filter.value='all';
   ui.count.textContent='已核对 '+(review.rows.length-pending())+' / '+review.rows.length+' 处';
   const visible=review.rows.filter(r=>{
     switch(ui.filter.value){
       case 'pending':return r.decision===null;
       case 'policy':return !!r.basis;
+      case 'outside':return review.canGroupKeep(r);
       case 'attention':return r.ambiguous||r.uncertain||!r.suggest;
       case 'dictionary':return r.origin==='本机词表';
       default:return true;
@@ -100,7 +108,7 @@ function render(){
     }
     for(const [decision,label] of [['mask','替换'],['keep','保留原文']]){
       const b=el('button',r.customerCheck?(decision==='mask'?'作为客户替换':'确认保留此处'):label);b.dataset.action=decision;b.setAttribute('aria-pressed',r.decision===decision);
-      b.onclick=()=>{if(r.decision===decision||!discardDraft())return;r.decision=decision;syncDraft();render();};
+      b.onclick=()=>{if((r.decision===decision&&!r.groupKept)||!discardDraft())return;r.groupKept=false;r.decision=decision;syncDraft();render();};
       actions.append(b);
     }
     row.append(left,actions);ui.rows.append(row);
@@ -109,6 +117,15 @@ function render(){
   controls();
 }
 ui.prev.onclick=()=>{page--;render();};ui.next.onclick=()=>{page++;render();};ui.filter.onchange=()=>{page=0;render();};
+ui.editScope.onclick=()=>{ui.policy.focus();ui.policy.scrollIntoView({block:'center'});};
+ui.keepOutside.onclick=()=>{
+  if(!review||!discardDraft())return;
+  review.keepOutside();syncDraft();render();say('已按本次范围保留所选位置，仍可逐处修改。');
+};
+ui.undoOutside.onclick=()=>{
+  if(!review||!discardDraft())return;
+  review.undoOutside();syncDraft();render();say('已将合并保留的位置恢复为待核对。');
+};
 ui.jumpReview.onclick=()=>{
   ui.filter.value='pending';
   page=0;
@@ -186,7 +203,8 @@ ui.run.onclick=async()=>{
     if(!items)throw Error('未收到完整的本地识别结果。');
     review=new Review(sources,items);ui.filter.value='all';syncDraft();render();
     if(summary){
-      const scope=summary.scoped?'按限定范围核对。范围外的默认候选已标为建议保留。':'沿用默认识别，并按本次要求调整建议。';
+      const scope=summary.scopeDescription?summary.scopeDescription+'。':
+        summary.scoped?'按限定范围核对。范围外的默认候选已标为建议保留。':'沿用默认识别，并按本次要求调整建议。';
       const found=summary.matches?'已定位 '+summary.matches+' 处与要求有关的原文。':'没有定位到与要求相符的原文，请检查是否需要手动补标。';
       ui.policyNote.textContent=scope+found+(summary.emptyScope?'限定范围未找到可遮盖文字，已保留默认建议。':'')+(summary.unlocated?'另有 '+summary.unlocated+' 条建议未能核实，请核对原文。':'');
       let previousPart='',end=0;
@@ -194,7 +212,7 @@ ui.run.onclick=async()=>{
         if(r.part!==previousPart){previousPart=r.part;end=0;}
         const overlaps=r.start<end;end=Math.max(end,r.end);return overlaps;
       }))ui.policyNote.textContent+=' 部分位置重叠：选“保留原文”后，选了“替换”的其他范围仍会遮盖。';
-      ui.policyNote.hidden=false;
+      ui.editScope.hidden=ui.policyNote.hidden=false;
     }
     say('识别完成。请逐处核对，漏项可回到左侧原文选中补标。');ui.reviewPanel.scrollIntoView({block:'start'});
   }catch(e){if(token===version)say(controller.signal.aborted?'已取消识别。':'识别失败。'+e.message,!controller.signal.aborted);}

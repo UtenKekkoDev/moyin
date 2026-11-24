@@ -29,6 +29,25 @@ function chunks(text) {
   if(pending.trim())result.push(pending);
   return result.filter(s=>s.trim());
 }
+// Keep the usual joint reading for cross-section references. On an actual
+// length limit, retry whole sections or sentences without losing delimiters.
+async function discoverTerms(part,generate,progress,depth=0){
+  try{return (await generate(discover,part,discoverySchema)).terms;}
+  catch(error){
+    if(error.code!=='MODEL_LENGTH_LIMIT'||depth>=3)throw error;
+    const boundaries=pattern=>Array.from(part.matchAll(pattern),m=>m.index+m[0].length)
+      .filter(i=>part.slice(0,i).trim()&&part.slice(i).trim());
+    let cuts=boundaries(/\n+/gu);
+    if(!cuts.length)cuts=boundaries(/[。！？；]+/gu);
+    if(!cuts.length)throw error;
+    const mid=part.length/2;
+    const cut=cuts.reduce((best,n)=>Math.abs(n-mid)<Math.abs(best-mid)?n:best);
+    progress('实体识别达到长度上限，正在分段重新识别…');
+    const left=await discoverTerms(part.slice(0,cut),generate,progress,depth+1);
+    const right=await discoverTerms(part.slice(cut),generate,progress,depth+1);
+    return left.concat(right);
+  }
+}
 function mentions(sources,terms) {
   const trie=new Map(),terminal=Symbol();
   for(const item of terms.values()){
@@ -89,6 +108,27 @@ function namedProjectUse(before,after){
   return /(?:代号|项目名称|项目名|版本名|名为|叫作|称作)[为是：:“「"\s]*$/u.test(before)||
     /^[”」"]?(?:的)?(?:项目|版本)(?!代号|名称)/u.test(after);
 }
+// Resolve a spelling shared by a person and a customer per occurrence.
+// An addressee alone can be either. Require a named personal role elsewhere
+// and an immediately following human pronoun to transfer that reading.
+function reviewNamedPeople(sources,rows){
+  const declared=new Set(),direct=new Set();
+  const candidates=rows.filter(r=>r.origin!=='本机词表'&&/^[\p{Script=Han}]{2,4}$/u.test(r.value)&&['人员','客户'].includes(r.type));
+  for(const r of candidates){
+    const s=sources[r.part];
+    if(/(?:交车人|领物人|点收人|清点人|经办人|签收人)(?:为|是|[：:])?\s*$/u.test(s.slice(Math.max(0,r.start-14),r.start))&&
+       /^(?:$|[，。；、\s])/u.test(s.slice(r.end))){
+      declared.add(r.value);direct.add(r);
+    }
+  }
+  for(const r of candidates){
+    if(!declared.has(r.value)||r.type!=='客户')continue;
+    const s=sources[r.part];
+    const personalReminder=/(?:给|提醒|通知)$/u.test(s.slice(Math.max(0,r.start-4),r.start))&&
+      /^(?:(?:的|写[个一条封]*)?(?:提醒|邮件|通知|短信))[，,]\s*(?:让|请)[他她](?!们)/u.test(s.slice(r.end,r.end+20));
+    if(direct.has(r)||personalReminder)Object.assign(r,{type:'人员',role:'',owner:'',ambiguous:false,suggest:true,origin:'人员角色核对'});
+  }
+}
 async function analyze(sources,signal,progress,policy='',onPolicy=()=>{},vocabulary=[]){
   const text=[sources.prompt,sources.body].filter(Boolean).join('\n');
   const terms=new Map();
@@ -100,8 +140,8 @@ async function analyze(sources,signal,progress,policy='',onPolicy=()=>{},vocabul
     const parts=chunks(text);
     for(const [i,part] of parts.entries()){
       progress('本地模型正在识别原文 · '+(i+1)+' / '+parts.length);
-      const raw=await generate(discover,part,discoverySchema);
-      for(const e of raw.terms){
+      const discovered=await discoverTerms(part,generate,progress);
+      for(const e of discovered){
         const value=e.value.trim();
         if(!value||value.length>80||/[\n｜，。；：]/.test(value)||!part.includes(value))continue;
         const role=e.label==='客户全称'?'full':e.label==='客户简称'?'alias':'';
@@ -120,6 +160,12 @@ async function analyze(sources,signal,progress,policy='',onPolicy=()=>{},vocabul
       }
     }
     const plan=fieldPlan(policy.trim());
+    const projectScope=!!plan.spec?.directives.get('项目')?.mask;
+    const workNames=new Set();
+    if(projectScope)for(const m of text.matchAll(/(?:改造|迁移|升级|改版|扩建)(?:工程)?代号[为是：:\s]*[“「"]([^”」"\r\n]{1,32})[”」"]/gu)){
+      workNames.add(m[1]);
+      if(!terms.has(m[1]))terms.set(m[1],{value:m[1],type:'项目',role:'',origin:'工程代号声明'});
+    }
     const customer=plan.spec?.directives;
     const evidence=customer?.get('客户')?.mask||customer?.get('客户全称')?.mask?companyEvidence(sources,terms):null;
     for(const term of [...terms.values()]){
@@ -133,7 +179,15 @@ async function analyze(sources,signal,progress,policy='',onPolicy=()=>{},vocabul
       }
     }
     const dictionaryAliases=applyVocabulary(terms,vocabulary);
-    const rows=mentions({prompt:sources.prompt,body:sources.body},terms),full=new Set(rows.filter(r=>r.role==='full').map(r=>r.value));
+    const rows=mentions({prompt:sources.prompt,body:sources.body},terms);
+    for(const r of rows){
+      if(!workNames.has(r.value)||r.origin==='本机词表')continue;
+      const s=sources[r.part],before=s.slice(Math.max(0,r.start-24),r.start),after=s.slice(r.end,r.end+16);
+      if(/(?:改造|迁移|升级|改版|扩建)(?:工程)?代号[为是：:“「"\s]*$/u.test(before)||
+          /^的(?:进度|进展|排期|里程碑)/u.test(after)&&!/(?:客户|供应商|公司|单位)[：:\s]*$/u.test(before))
+        Object.assign(r,{type:'项目',role:'',origin:'工程代号声明'});
+    }
+    const full=new Set(rows.filter(r=>r.role==='full').map(r=>r.value));
     const aliases=new Set(rows.filter(r=>r.role==='alias').map(r=>r.value));
     const {owners,exact}=declarations(sources,rows);
     const hints=new Map();
@@ -193,15 +247,28 @@ async function analyze(sources,signal,progress,policy='',onPolicy=()=>{},vocabul
     for(const r of rows){
       const s=sources[r.part],before=s.slice(Math.max(0,r.start-32),r.start),after=s.slice(r.end,r.end+30);
       if(r.type==='项目'&&projectUses.get(r.value)?.length>1){
+        // In a writing request the direct object can be a declared project:
+        // “列出 X 的两项安排”. Requiring the verb immediately before X keeps
+        // a nested activity (“列出设备换气的安排”) out of this rule.
+        const projectBrief=r.part==='prompt'&&declaredProjects.has(r.value)&&
+          /(?:列出|概括|梳理|汇总|整理|说明)[“「"]?$/u.test(before)&&
+          /^[”」"]?的(?:[一二两三四五六七八九十\d]+项)?(?:安排|排期|计划|进展|里程碑|风险)/u.test(after);
         if(/^(?:的)?(?:项目|版本|排期|上线|进展|里程碑)|^写入(?:周报|进度|汇报)/.test(after)||
-          (declaredProjects.has(r.value)&&/^的(?:采购|内部|总|本次)?(?:预算|报价|成本|计划|工期|金额|风险|材料费)/u.test(after)))r.suggest=true;
+          projectBrief||(declaredProjects.has(r.value)&&/^的(?:采购|内部|总|本次)?(?:预算|报价|成本|计划|工期|金额|风险|材料费)/u.test(after)))r.suggest=true;
         if(/(?:房间|室内|墙壁)(?:里|中)?的$/.test(before)&&/测量|声学|噪声/.test(before+after))r.suggest=false;
+        if(r.origin!=='本机词表'){
+          if(r.value==='换气'&&/(?:设备|机组|室内|车间)(?:需(?:要)?|要|正在|定时)?$/u.test(before))r.suggest=false;
+          if(r.value==='回声'&&/(?:厅|房间|室内)(?:中|里)的$/u.test(before)&&/^(?:需要|应当|须)?(?:消除|测量|减弱)/u.test(after))r.suggest=false;
+        }
       }
       const named=namedProjectUse(before,after);
       if(r.type==='项目'&&named)r.suggest=true;
+      if(projectScope&&r.origin!=='本机词表'&&/(?:备件|零件|物料|料件)代号[为是：:“「"\s]*$/u.test(before))r.suggest=false;
       if(!named&&r.origin!=='本机词表'){
         // A workflow verb and a participant role can also be literal project
         // names. Resolve the occurrence before applying any default suggestion.
+        const counting=r.value==='清点'&&/(?:先|再|已|来|请|负责|同事|库管|仓管|管理员|保管员)$/u.test(before)&&
+          /^[\p{Script=Han}]/u.test(after)&&!/^的|^(?:项目|版本|计划|安排|进展|进度|排期)/u.test(after);
         const activity=/^(?:签收|测试|验收|联调|复核|交付)$/u.test(r.value);
         // In “交给某人签收” the marked word is the predicate, even if that
         // spelling was declared as a project elsewhere in the document.
@@ -215,7 +282,10 @@ async function analyze(sources,signal,progress,policy='',onPolicy=()=>{},vocabul
         const department=inferred&&r.type==='人员'&&/^(?:仓库|前台|财务部|采购部|库管|仓管|值班员|我|你|他|她|我方|对方|[我你他她]们)$/u.test(r.value);
         const commonMention=inferred&&!r.owner&&!declaredProjects.has(r.value)&&
           /^(?:(?:现场|销售|技术|采购|实施|仓储|客户)代表|(?:收货|交货|验收|送货|值班|销售|维修|技术|操作|测试|检验|工程|采购)员|(?:前一封|上一封|上封|这封|本次)?邮件|调试|回访|核销|报销|差旅|采购|发运|来料|财务|销售|收货人)$/u.test(r.value);
-        if(commonMention||participant||department||(r.type==='项目'&&assignedToRole)||(activity&&(action||(!declaredProjects.has(r.value)&&r.origin==='本地模型')))){
+        const genericPlaceOrPost=inferred&&!r.owner&&!r.ambiguous&&!declaredProjects.has(r.value)&&
+          !/(?:客户(?:全称|简称|名称)?|简称|代号|名为)[是为叫：:“「"\s]*$/u.test(before)&&
+          /^(?:(?:小型|大型|小|大)?(?:剧场|剧院|会场|展馆|展厅|活动中心)|(?:舞台|项目|现场|销售|采购|部门)经理)$/u.test(r.value);
+        if(commonMention||genericPlaceOrPost||participant||department||(r.type==='项目'&&(assignedToRole||counting))||(activity&&(action||(!declaredProjects.has(r.value)&&r.origin==='本地模型')))){
           r.suggest=false;r.uncertain=true;
         }
       }
@@ -233,6 +303,7 @@ async function analyze(sources,signal,progress,policy='',onPolicy=()=>{},vocabul
       progress('本地模型正在理解本次脱敏要求…');
       const part=plan.section?.part;
       if(evidence)for(const row of rows)if(!part||row.part===part)reviewCompany(row,evidence,part);
+      if(plan.spec?.directives.get('人员')?.mask)reviewNamedPeople(sources,rows);
       onPolicy(await applyPolicy(sources,rows,policy.trim(),generate,progress,plan));
     }
     return rows;

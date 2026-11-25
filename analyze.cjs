@@ -130,7 +130,17 @@ function reviewNamedPeople(sources,rows){
     if(direct.has(r)||personalReminder)Object.assign(r,{type:'人员',role:'',owner:'',ambiguous:false,suggest:true,origin:'人员角色核对'});
   }
 }
-async function analyze(sources,signal,progress,policy='',onPolicy=()=>{},vocabulary=[],plan=fieldPlan(policy.trim())){
+async function analyze(sources,signal,progress,policy='',onPolicy=()=>{},vocabulary=[],plan=fieldPlan(policy.trim()),mode='fast'){
+  if(mode==='precision'){
+    const {classify,supportedPlan}=require('./precision.cjs');
+    const rule=supportedPlan(plan);
+    if(!rule||vocabulary.length)throw Error('高精度模式支持只遮对客报价或延期的规则。如需词表或其他规则，请切回快速模式。');
+    return withModel(signal,async generate=>{
+      const rows=await classify(sources,rule,generate);
+      onPolicy({scoped:true,matches:rows.filter(r=>r.suggest).length,scopeDescription:'按确认卡逐处判断金额与时长'});
+      return rows;
+    },mode);
+  }
   const text=[sources.prompt,sources.body].filter(Boolean).join('\n');
   const terms=new Map();
   for(const r of rules(text)){

@@ -33,6 +33,14 @@ const server=http.createServer(async(req,res)=>{
   res.setHeader('Content-Security-Policy',"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; frame-ancestors 'none'; form-action 'none'; base-uri 'none'");
   if(formats.serve(req,res))return;
   if(req.method==='GET'){
+    if(req.url==='/mode-info'){
+      let host=null;
+      if(process.env.MOYIN_27B_URL){
+        try{host=new URL(process.env.MOYIN_27B_URL).host;}catch{host='服务地址配置无效';}
+      }
+      res.setHeader('Content-Type','application/json; charset=utf-8');
+      res.end(JSON.stringify({precisionHost:host}));return;
+    }
     const file=req.url==='/'?'index.html':req.url.slice(1);
     if(!assets.has(file)){res.writeHead(404).end();return;}
     res.setHeader('Content-Type',({'html':'text/html','css':'text/css','js':'text/javascript','png':'image/png'})[file.split('.').pop()]+ (file.endsWith('.png')?'':'; charset=utf-8'));
@@ -55,17 +63,18 @@ const server=http.createServer(async(req,res)=>{
   let started,outcome='failed';
   res.once('close',()=>job.abort());
   try {
-    const {body,prompt,policy='',vocabulary=[],confirmation}=await readRequest(req,550000);
+    const {body,prompt,policy='',vocabulary=[],confirmation,mode='fast'}=await readRequest(req,550000);
     const {plan,card}=prepareRule(policy);
     if(!confirmed(card,confirmation)){res.writeHead(412).end('请先确认本次规则。');return;}
+    if(!['precision','fast'].includes(mode))throw Error('未知识别模式。');
     const dictionary=validateVocabulary(vocabulary);
     if(typeof body!=='string'||typeof prompt!=='string'||body.length>60000||prompt.length>10000||!(body+prompt).trim())throw Error('正文最多 6 万字符，提示词最多 1 万字符，至少填写一项。');
     started=performance.now();
     res.writeHead(200,{'Content-Type':'application/x-ndjson; charset=utf-8'});
     const send=e=>{if(!res.destroyed)res.write(JSON.stringify(e)+'\n');};
-    send({progress:'正在本机加载 Aztec-Coder-4B…'});
+    send({progress:mode==='fast'?'正在本机加载 Aztec-Coder-4B…':'正在准备 27B 高精度识别…'});
     let policySummary;
-    const rows=await analyze({prompt,body},job.signal,msg=>send({progress:msg}),policy,s=>{policySummary=s;},dictionary,plan);
+    const rows=await analyze({prompt,body},job.signal,msg=>send({progress:msg}),policy,s=>{policySummary=s;},dictionary,plan,mode);
     send({result:rows,policySummary});res.end();
     outcome='completed';
   }catch(e){

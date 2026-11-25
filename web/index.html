@@ -3,20 +3,23 @@
 <link rel="icon" href="/moyin-32.png" type="image/png" sizes="32x32"><title>墨隐 · 本地脱敏工作台</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="review.css">
 <script defer src="text-import.js"></script>
 <script defer src="sample.js"></script><script defer src="docx.js"></script><script defer src="review.js"></script><script defer src="outbound.js"></script><script defer src="ui.js"></script><script defer src="rule-card.js"></script><script defer src="profile-return.js"></script></head>
-<body><header><div class="bar"><div class="brand"><img src="/moyin-96.png" alt="" width="32" height="32">墨隐</div><nav aria-label="工作区"><span aria-current="page">文档脱敏</span><a href="/formats/" target="_blank" rel="noopener" aria-label="文件涂黑，在新标签页打开">文件涂黑 ↗</a></nav><span class="offline">本机运行 <b>Aztec-Coder-4B</b></span></div></header>
+<body><header><div class="bar"><div class="brand"><img src="/moyin-96.png" alt="" width="32" height="32">墨隐</div><nav aria-label="工作区"><span aria-current="page">文档脱敏</span><a href="/formats/" target="_blank" rel="noopener" aria-label="文件涂黑，在新标签页打开">文件涂黑 ↗</a></nav><span class="offline" id="modelBadge">本机 · 快速 4B</span></div></header>
 <main><section class="intro"><div><h1>文档脱敏工作台</h1><p>导入内部材料，核对正文与提示词，再复制对外稿。</p></div><button id="demo">载入模拟项目</button></section>
 <div class="workspace"><section class="panel"><div class="panelTitle"><h2>原始材料</h2><button id="clear" class="link">清空</button></div>
 <div class="inside"><div id="drop" class="drop"><div><strong id="filename">导入材料</strong><small id="fileinfo">Word、TXT、Markdown · 单次最多 6 万字符</small></div><label class="button" for="file">选择文件</label><input class="file" id="file" type="file" accept=".docx,.txt,.md,.markdown"></div>
 <label class="field" for="body">正文与表格</label><textarea rows="4" id="body" maxlength="60000" placeholder="导入文件，或在此粘贴正文…" spellcheck="false"></textarea>
 <label class="field" for="prompt">写作提示词 <span>随稿发送</span></label><textarea rows="2" id="prompt" maxlength="10000" placeholder="希望外部 AI 怎样编辑这份材料？" spellcheck="false"></textarea>
 <label class="field" for="policy">本地脱敏要求（选填）</label><textarea rows="2" id="policy" maxlength="1000" placeholder="例如：隐去客户报价，保留采购成本和延期天数。" aria-describedby="policyHelp" spellcheck="false"></textarea>
-<small id="policyHelp">仅在本机使用。留空则使用默认识别。</small>
+<small id="policyHelp">快速模式下留空使用默认识别。</small>
+<label class="field" for="modelMode">识别模式</label>
+<select id="modelMode"><option value="fast">快速（4B）</option><option value="precision">高精度（27B）</option></select>
+<small id="modeNote" aria-live="polite"></small>
 <fieldset id="ruleTools"><legend>预设场景</legend>
 <div class="ruleButtons"><button id="pricePreset">隐藏对客报价</button><button id="bothPreset">隐藏对客报价及延期</button></div>
 <div id="ruleOptions" hidden><label><input type="checkbox" id="pickPrice">对客报价</label>
 <label><input type="checkbox" id="pickDelay">延期时长</label>
 <label>作用范围 <select id="ruleScope"><option value="both">正文和提示词</option><option value="body">仅正文</option><option value="prompt">仅提示词</option></select></label>
-<label id="recipientOption">报价受方 <input id="quoteRecipient" maxlength="10" placeholder="不限"></label>
+<label id="recipientOption">收报价方 <input id="quoteRecipient" maxlength="10" placeholder="不限"></label>
 <label id="issuedOption"><input id="issuedOnly" type="checkbox">仅已报出</label>
 <label id="actualOption"><input id="actualOnly" type="checkbox">仅实际延期</label></div></fieldset>
 <section id="ruleCard" aria-live="polite" aria-label="规则确认" hidden></section>

@@ -1,5 +1,22 @@
 'use strict';
 const ui=Object.fromEntries([...document.querySelectorAll('[id]')].map(e=>[e.id,e]));
+let selectedMode='fast',precisionTarget,modeInfoError=false;
+function renderMode(){
+  const precise=selectedMode==='precision';
+  ui.modelBadge.textContent=precise?(precisionTarget?'内网服务 · 27B':'高精度 · 27B'):'本机 · 快速 4B';
+  ui.modeNote.textContent=precise?(modeInfoError?'无法读取推理服务配置，请刷新页面或切回快速模式。':
+    precisionTarget===undefined?'正在读取服务配置…':(precisionTarget?'正文和写作提示词原文将发送到 '+precisionTarget+'。':'正文和写作提示词在本机处理。')+'请选择对客报价或延期规则。'):'';
+}
+ui.modelMode.onchange=()=>{
+  if(review&&(draftEdited||review.rows.some(r=>r.decision!==null))&&!confirm('切换模式会清除当前核对和编辑，继续？')){
+    ui.modelMode.value=selectedMode;return;
+  }
+  selectedMode=ui.modelMode.value;renderMode();invalidate();
+};
+fetch('/mode-info').then(async response=>{
+  if(!response.ok)throw Error();
+  const info=await response.json();precisionTarget=info.precisionHost;
+}).catch(()=>{modeInfoError=true;}).finally(()=>{renderMode();controls();});
 const PAGE=12;
 const snapshots=new Map();
 let outgoing=null, findings=null, checkedIssues=0,clearCount=0;
@@ -16,6 +33,11 @@ function controls(){
   ui.run.hidden=needsRule&&ruleCard?.route==='fallback';
   ui.run.textContent=needsRule?'确认规则并识别':'开始本地识别';
   ui.freeRun.hidden=!needsRule||ruleCard?.route!=='fallback';
+  ui.modelMode.disabled=busy;
+  if(selectedMode==='precision'){
+    ui.run.disabled||=precisionTarget===undefined||ruleCard?.route!=='structured';
+    ui.freeRun.hidden=true;
+  }
   ui.freeRun.disabled=!canStart;ui.ruleTools.disabled=busy;
   ui.cancel.hidden=!task; ui.file.disabled=ui.demo.disabled=busy;
   ui.body.readOnly=ui.prompt.readOnly=ui.policy.readOnly=busy;
@@ -122,6 +144,7 @@ function renderRow(r){
     const meta=(r.part==='prompt'?'提示词':'正文')+' · 第 '+(t.slice(0,r.start).split('\n').length)+' 行 · '+r.origin;
     left.append(el('small',meta));
     if(r.basis||r.scopeNote)left.append(el('small',r.basis?'按你的要求「'+r.basis+'」':r.scopeNote));
+    if(r.businessReason){const reason=el('p','业务依据 · '+r.businessReason);reason.className='businessReason';left.append(reason);}
     if(r.customerCheck)left.append(el('strong',r.customerCheck));
     else if(r.numericFamily==='money'&&r.uncertain&&!r.suggest&&r.decision===null)left.append(el('strong',/报价|售价|对客/.test(r.basis||'')?'预览暂留原文，请核实是否属于要遮的报价。':'预览暂留原文，请核实是否属于本次要遮的金额。'));
     else if(r.uncertain&&r.basis&&r.decision===null)left.append(el('small','用途待核对，请根据上下文决定是否替换。'));
@@ -218,7 +241,7 @@ async function startAnalysis(fallback){
   invalidate();const token=version, controller=new AbortController();task=controller;
   const sources={prompt:ui.prompt.value,body:ui.body.value};controls();say('正在准备本地推理…');
   try{
-    const resp=await fetch('/analyze',{method:'POST',headers:{'Content-Type':'application/json','X-Moyin':'review'},body:JSON.stringify({...sources,policy:ui.policy.value,vocabulary,confirmation:ruleCard}),signal:controller.signal});
+    const resp=await fetch('/analyze',{method:'POST',headers:{'Content-Type':'application/json','X-Moyin':'review'},body:JSON.stringify({...sources,mode:selectedMode,policy:ui.policy.value,vocabulary,confirmation:ruleCard}),signal:controller.signal});
     if(!resp.ok)throw Error(resp.status===409?'上一份识别尚在结束，请稍后重试。':'本地服务未接受请求。');
     const reader=resp.body.pipeThrough(new TextDecoderStream()).getReader();
     let buf='',items,summary;

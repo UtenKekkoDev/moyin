@@ -10,3 +10,5 @@
 #profileBox{margin-top:12px;padding:10px 12px;border:1px solid var(--line);border-radius:7px}#profileBox summary{cursor:pointer;font-weight:600}#profileBox .buttons{justify-content:flex-start;margin:8px 0}
 #returnPanel{margin-top:18px}#scanReturn{margin-top:8px}.returnChoice{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;padding:10px 0;border-top:1px solid var(--line)}.returnChoice select{grid-column:2;grid-row:1/3;max-width:300px}.returnChoice small{grid-column:1}
 @media(max-width:760px){.returnChoice{display:block}.returnChoice select{display:block;max-width:100%;margin-top:5px}}
+
+.businessReason{margin:.35rem 0;color:#294e44;line-height:1.5;overflow-wrap:anywhere;}

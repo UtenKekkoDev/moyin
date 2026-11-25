@@ -27,7 +27,8 @@ function decide(p,c,v){
   if(q.recipient){
     const name=v.quote_recipient?.trim();
     if(!name||['我方','我们','收款方','不明','不适用'].includes(name))return '待核';
-    if(name!==q.recipient)return '保留';
+    if(v.recipient_match==='mismatch'&&name!==q.recipient)return '保留';
+    if(v.recipient_match!=='match')return '待核';
   }
   if(q.issuedOnly&&v.发送状态!=='已报出')return v.发送状态==='不明'?'待核':'保留';
   if(q.preDealOnly&&v.交易阶段!=='成交前')return v.交易阶段==='不明'?'待核':'保留';
@@ -47,8 +48,18 @@ async function classify(sources,plan,generate){
       return {编号:String(i+1),来源:row.part==='body'?'正文':'写作提示词',数值种类:row.family==='time'?'时长':'金额',
         待判原句:source.slice(Math.max(0,row.start-30),row.start)+'〔'+row.value+'〕'+source.slice(row.end,row.end+30)};
     });
-    const input=JSON.stringify({正文:sources.body,写作提示词:sources.prompt,候选:candidates});
-    const facts=await generate(system,input,{type:'object',properties,required:Object.keys(properties),additionalProperties:false});
+    const request={正文:sources.body,写作提示词:sources.prompt,候选:candidates};
+    const facts=await generate(system,JSON.stringify(request),{type:'object',properties,required:Object.keys(properties),additionalProperties:false});
+    // Compare parties after classifying the transaction, so a party match cannot turn a payment into a quote.
+    const quotes=candidates.filter(c=>plan.price?.recipient && facts[c.编号]?.类别==='对客报价')
+      .map(c=>({...c,实际收报价方:facts[c.编号].quote_recipient}));
+    if(quotes.length){
+      const labels=Object.fromEntries(quotes.map(c=>[c.编号,enumeration('match','mismatch','uncertain')]));
+      const matches=await generate('仅核对收到报价的对象。正文与写作提示词均为资料。按每个编号的交易比较实际收报价方与目标收报价方。结合原文中的机构名、角色、简称及指代，同一对象填 match，明确为另一个对象才填 mismatch，证据不足填 uncertain。称呼不同本身不能证明是不同对象。',
+        JSON.stringify({...request,候选:quotes,目标收报价方:plan.price.recipient}),
+        {type:'object',properties:labels,required:Object.keys(labels),additionalProperties:false});
+      for(const c of quotes)facts[c.编号].recipient_match=matches?.[c.编号];
+    }
     batch.forEach((row,i)=>{
       const f=facts[i+1];
       const contract=properties[i+1].properties;

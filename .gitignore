@@ -6,3 +6,26 @@
 .env
 .env.*
 *.log
+
+# Offline experiments, downloaded weights and training runs
+/outputs/
+/eval-results/
+/checkpoints/
+/runs/
+/training-output/
+/wandb/
+*.safetensors
+*.ckpt
+*.pt
+*.pth
+*.gguf.part
+*.gguf.tmp
+
+# Local packages, caches and scratch files
+node_modules/
+.cache/
+__pycache__/
+.pytest_cache/
+*.pyc
+/tmp/
+/temp/

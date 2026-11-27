@@ -36,7 +36,8 @@
     const box=ui.ruleCard;
     if(card.route==='custom'){
       box.replaceChildren(el('strong','确认 27B 自定义要求'),el('p',card.instruction),
-        el('p','将按原话调整常规脱敏建议。限定范围、例外和重复出现的位置请在初稿中逐处核对。'));
+        el('p',card.exclusive?'只处理命中要求的位置，其余原样保留。':'将按原话调整常规脱敏建议。'),
+        el('p','核对范围：'+({body:'仅正文',prompt:'仅提示词',both:'正文和提示词'}[card.scope])+'。请逐处核对例外和重复出现的位置。'));
       return;
     }
     if(card.route==='fallback'){
@@ -64,14 +65,16 @@
     timer=setTimeout(async()=>{
       try{
         const resp=await fetch('/rule-preview',{method:'POST',headers:{'Content-Type':'application/json','X-Moyin':'review'},body:JSON.stringify({policy:text,mode})});
-        if(!resp.ok)throw Error();
+        if(!resp.ok)throw Error(resp.status===403?'页面地址与本机服务不匹配。请从启动窗口打开工作台。':
+          resp.status===400?'请检查脱敏要求是否超过 1000 个字符。':'规则服务返回 HTTP '+resp.status+'。');
         const card=await resp.json();if(id!==revision)return;
         display(card);ruleCard=card;controls();
-      }catch{
+      }catch(error){
         if(id!==revision)return;
         lastText=undefined;
         const retry=el('button','重新读取规则');retry.onclick=window.refreshRule;
-        ui.ruleCard.replaceChildren(el('p','无法读取规则，请重试。'),retry);
+        const detail=error instanceof TypeError?'请确认启动窗口仍在运行，并使用该窗口中的本机地址。':error.message;
+        ui.ruleCard.replaceChildren(el('p','无法读取规则。'+detail),retry);
       }
     },120);
   };

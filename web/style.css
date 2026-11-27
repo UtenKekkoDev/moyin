@@ -31,7 +31,6 @@ main { padding:32px 0 42px }
 .inside { padding:18px 24px 22px }
 small,.muted,.field span { color:var(--muted); font-size:12px; line-height:1.55 }
 .drop { gap:12px; border:1px dashed #93ac98; background:#f2f6ed; border-radius:8px; padding:14px }
-.drop::before { content:"↑"; border:1px solid #c1d2bf; border-radius:7px; background:#fff; color:var(--pine); width:36px; height:40px; flex:none; display:grid; place-items:center; font:600 23px/1 sans-serif }
 .drop div { min-width:0; flex:1 }
 .drop strong,.drop small { display:block; overflow-wrap:anywhere }
 .drop:focus-within,.drop.over { outline:2px solid var(--pine); outline-offset:2px }
@@ -104,6 +103,5 @@ input[type=checkbox] { width:16px; height:16px; accent-color:var(--pine) }
   .previewEmpty { min-height:250px }
   .sampleSheet { padding:15px 18px }
   .drop { padding:10px; gap:8px }
-  .drop::before { display:none }
   .panelTitle { min-height:50px }
 }

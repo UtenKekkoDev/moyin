@@ -16,6 +16,13 @@ async function evaluate(body, policy, proposed, initial = []) {
 }
 
 async function run() {
+  const policy='请把维修单上的柜门颜色隐去，其余原样保留';
+  const {plan}=require('../rule-card.cjs').prepareRule(policy,'precision');
+  const rows=[{part:'body',start:0,end:2,value:'李平',type:'人员',suggest:true,id:1}];
+  const generate=async(_,input,schema)=>schema.properties.mode?{mode:'沿用默认'}:{edits:[]};
+  const summary=await applyPolicy({body:'李平已签字。',prompt:''},rows,policy,generate,()=>{},plan);
+  assert(summary.scoped);
+  assert.equal(rows[0].suggest,false);
   const price='这次只隐去我们给客户的售价，其他记录照写。';
   assert.deepEqual(await evaluate('整理交接说明。',price,[['整理交接说明。','金额']]),[]);
   assert.deepEqual(await evaluate('确认单列860元。',price,[['确认单列860元。','金额']]),[['860元','金额']]);

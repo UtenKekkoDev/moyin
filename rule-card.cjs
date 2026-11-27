@@ -24,7 +24,11 @@ function prepareRule(policy,mode='fast'){
     for(const [name,basis] of spec.keptPeople||[])card.keep.push({label:name,basis});
     for(const term of spec.retainedTerms||[])card.keep.push({label:term,basis:text});
   }
-  if(route==='custom')card.instruction=text;
+  if(route==='custom'){
+    card.instruction=text;
+    plan.keepOthers=/(?:^|[，,。；;\n])\s*(?:其余|其他|其它)(?:内容|信息|部分)?(?:都|全部)?(?:原样保留|照原样|保留原文|保留)\s*[。！!]?$/u.test(text);
+    card.exclusive=plan.keepOthers;
+  }
   card.token=createHash('sha256').update(JSON.stringify([mode,text,card])).digest('hex');
   return {plan,card};
 }

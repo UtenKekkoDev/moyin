@@ -126,7 +126,7 @@ function fieldPlan(policy){
   const spec=parseFields(instruction)||parseExclusive(instruction)||parseNumericRequest(instruction);
   return {section,spec};
 }
-async function applyPolicy(sources,rows,policy,generate,progress,{section,spec}=fieldPlan(policy)){
+async function applyPolicy(sources,rows,policy,generate,progress,{section,spec,keepOthers=false}=fieldPlan(policy)){
   if(spec){
     const scopedRows=section?rows.filter(row=>row.part===section.part):rows;
     const scopedSources=section?{[section.part]:sources[section.part]}:sources;
@@ -253,7 +253,7 @@ async function applyPolicy(sources,rows,policy,generate,progress,{section,spec}=
       if(peer)matches.set(key,{...r,basis:peer.basis,suggest:true});
     }
   }
-  const summary=mergeChanges(rows,[...matches.values()],only,unlocated,!!target);
+  const summary=mergeChanges(rows,[...matches.values()],keepOthers||only,unlocated,keepOthers||!!target);
   if(!target)return summary;
   const description='本次按员工要求处理'+({人员:'指定人员姓名',时间:'指定时长',金额:'指定金额',对客报价:'指定对客报价'})[target];
   if(!summary.scoped)return {...summary,scopeDescription:description+'，沿用默认脱敏'};

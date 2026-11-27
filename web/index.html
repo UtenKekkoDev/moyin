@@ -3,7 +3,7 @@
 <link rel="icon" href="/moyin-32.png" type="image/png" sizes="32x32"><title>墨隐 · 本地脱敏工作台</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="review.css">
 <script defer src="text-import.js"></script>
 <script defer src="sample.js"></script><script defer src="docx.js"></script><script defer src="review.js"></script><script defer src="outbound.js"></script><script defer src="ui.js"></script><script defer src="rule-card.js"></script><script defer src="profile-return.js"></script></head>
-<body><header><div class="bar"><div class="brand"><img src="/moyin-96.png" alt="" width="32" height="32">墨隐</div><nav aria-label="工作区"><span aria-current="page">文档脱敏</span><a href="/formats/" target="_blank" rel="noopener" aria-label="文件涂黑，在新标签页打开">文件涂黑 ↗</a></nav><span class="offline" id="modelBadge">本机 · 快速 4B</span></div></header>
+<body><header><div class="bar"><div class="brand"><img src="/moyin-96.png" alt="" width="32" height="32">墨隐</div><nav aria-label="工作区"><span aria-current="page">文档脱敏</span><a href="/formats/" target="_blank" rel="noopener" aria-label="文件涂黑，在新标签页打开">文件涂黑</a></nav><span class="offline" id="modelBadge">本机 · 快速 4B</span></div></header>
 <main><section class="intro"><div><h1>文档脱敏工作台</h1><p>导入内部材料，核对正文与提示词，再复制对外稿。</p></div><button id="demo">载入模拟项目</button></section>
 <div class="workspace"><section class="panel"><div class="panelTitle"><h2>原始材料</h2><button id="clear" class="link">清空</button></div>
 <div class="inside"><div id="drop" class="drop"><div><strong id="filename">导入材料</strong><small id="fileinfo">Word、TXT、Markdown · 单次最多 6 万字符</small></div><label class="button" for="file">选择文件</label><input class="file" id="file" type="file" accept=".docx,.txt,.md,.markdown"></div>
@@ -46,7 +46,7 @@
 <div id="rows">
 <section id="numericOverview" aria-labelledby="numericTitle" hidden><h3 id="numericTitle">已识别金额与时长</h3><div id="numberGroups"></div></section>
 <div class="navrow"><label>其他位置 <select id="filter"><option value="all">全部位置</option><option value="pending">待核对位置</option><option value="policy">按本次要求识别</option><option value="outside" hidden>可合并保留的位置</option><option value="attention">需要重点核对</option><option value="dictionary">来自本机词表</option></select></label><span><button id="prev">上一页</button> <span id="pageNo"></span> <button id="next">下一页</button></span></div>
-<ol id="otherRows" class="positions"></ol><small id="noOther" hidden>没有其他匹配位置，遗漏内容可选中原文补标。</small></div><a class="backPreview" href="#previewPanel">返回对外稿预览 ↑</a></div></section>
+<ol id="otherRows" class="positions"></ol><small id="noOther" hidden>没有其他匹配位置，遗漏内容可选中原文补标。</small></div><a class="backPreview" href="#previewPanel">返回对外稿预览</a></div></section>
 <section class="panel" id="returnPanel" hidden><div class="panelTitle"><h2>汇报回填</h2></div><div class="inside">
 <label class="field first" for="returnVersion">对外稿版本</label><select id="returnVersion"><option value="">按返回稿号匹配</option></select>
 <small>代号表仅在当前页面有效。请在刷新或关闭页面前完成回填。</small>

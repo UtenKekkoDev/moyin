@@ -130,12 +130,14 @@ function reviewNamedPeople(sources,rows){
     if(direct.has(r)||personalReminder)Object.assign(r,{type:'人员',role:'',owner:'',ambiguous:false,suggest:true,origin:'人员角色核对'});
   }
 }
-async function analyze(sources,signal,progress,policy='',onPolicy=()=>{},vocabulary=[],plan=fieldPlan(policy.trim()),mode='fast'){
+async function analyze(sources,signal,progress,policy='',onPolicy=()=>{},vocabulary=[],plan,mode='fast'){
+  plan??=mode==='precision'?require('./rule-card.cjs').prepareRule(policy,mode).plan:fieldPlan(policy.trim());
   if(mode==='precision'){
     const {classify,supportedPlan}=require('./precision.cjs');
     const rule=supportedPlan(plan);
-    if(!rule||vocabulary.length)throw Error('高精度模式支持只遮对客报价或延期的规则。如需词表或其他规则，请切回快速模式。');
-    return withModel(signal,async generate=>{
+    if(!policy.trim())throw Error('请填写本地脱敏要求或选择预设。');
+    if(rule&&vocabulary.length)throw Error('仅处理价格或延期时，请清空本次词表。');
+    if(rule)return withModel(signal,async generate=>{
       const rows=await classify(sources,rule,generate);
       onPolicy({scoped:true,matches:rows.filter(r=>r.suggest).length,scopeDescription:'按确认卡逐处判断金额与时长'});
       return rows;
@@ -315,19 +317,31 @@ async function analyze(sources,signal,progress,policy='',onPolicy=()=>{},vocabul
       if(evidence)for(const row of rows)if(!part||row.part===part)reviewCompany(row,evidence,part);
       if(plan.spec?.directives.get('人员')?.mask)reviewNamedPeople(sources,rows);
       onPolicy(await applyPolicy(sources,rows,policy.trim(),generate,progress,plan));
+      if(mode==='precision'&&plan.section){
+        for(const row of rows){
+          if(row.part!==plan.section.part)Object.assign(row,{suggest:false,scopeNote:'本次要求限定在另一区域'});
+        }
+      }
     }
     // The inventory covers both sections even for an empty or section-only policy.
     // Attach to existing decisions by occurrence, never by the spelling of a value.
     const at=(r)=>r.part+':'+r.start+':'+r.end;
+    const numbers=values(sources);
+    if(mode==='precision'&&!plan.spec){
+      const amounts=new Set(numbers.filter(n=>n.family==='money').map(at));
+      for(const row of rows){
+        if(row.type==='金额'&&!amounts.has(at(row)))row.type='敏感内容';
+      }
+    }
     const positions=new Map(rows.map(r=>[at(r),r]));
     let next=rows.reduce((max,r)=>Math.max(max,r.id),0)+1;
-    for(const {part,start,end,value,family} of values(sources)){
+    for(const {part,start,end,value,family} of numbers){
       const existing=positions.get(at({part,start,end}));
       if(existing){existing.numericFamily=family;continue;}
       rows.push({id:next++,part,start,end,value,numericFamily:family,type:family==='money'?'金额':'时间',
         role:'',owner:'',origin:'原文数值核对',suggest:false,inventoryOnly:true});
     }
     return rows;
-  });
+  },mode);
 }
 module.exports={analyze};

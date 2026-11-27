@@ -1,6 +1,15 @@
 const assert=require('node:assert/strict');
 const {prepareRule,confirmed}=require('../rule-card.cjs');
 const card=text=>prepareRule(text).card;
+const precise=text=>prepareRule(text,'precision').card;
+assert.equal(precise('隐藏全部价格').hide[0].label,'全部价格（含内部测算价、采购价和对客报价）');
+assert.equal(precise('只在提示词中隐藏所有价格').scope,'prompt');
+assert.equal(card('隐藏全部价格').route,'fallback');
+const raw='请把维修单上的柜门颜色隐去，其余原样保留';
+assert.equal(precise(raw).route,'custom');
+assert.equal(precise(raw).instruction,raw);
+assert(!confirmed(precise(raw),card(raw)));
+assert(!confirmed(precise(raw),precise(raw+'。')));
 
 assert.equal(card('  ').route,'default');
 for(const scope of ['','在正文中','在提示词中']){

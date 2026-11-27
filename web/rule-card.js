@@ -1,6 +1,6 @@
 'use strict';
 {
-  let lastText,templateText,revision=0,timer;
+  let lastText,lastMode,templateText,revision=0,timer;
   function resetOptions(){
     ui.ruleScope.value='both';ui.quoteRecipient.value='';
     ui.issuedOnly.checked=ui.actualOnly.checked=false;
@@ -34,6 +34,11 @@
   }
   function display(card){
     const box=ui.ruleCard;
+    if(card.route==='custom'){
+      box.replaceChildren(el('strong','确认 27B 自定义要求'),el('p',card.instruction),
+        el('p','将按原话调整常规脱敏建议。限定范围、例外和重复出现的位置请在初稿中逐处核对。'));
+      return;
+    }
     if(card.route==='fallback'){
       box.replaceChildren(el('strong','未匹配到标准规则'),el('p','可选择上方预设并调整勾选项，或继续按原话自由识别。'));
       return;
@@ -50,14 +55,15 @@
   window.refreshRule=function(){
     const text=ui.policy.value;
     if(text!==templateText)ui.ruleOptions.hidden=true;
-    if(text===lastText)return;
-    lastText=text;const id=++revision;clearTimeout(timer);ruleCard=null;
+    const mode=ui.modelMode.value;
+    if(text===lastText&&mode===lastMode)return;
+    lastText=text;lastMode=mode;const id=++revision;clearTimeout(timer);ruleCard=null;
     ui.ruleCard.hidden=!text.trim();controls();
     if(!text.trim())return;
     ui.ruleCard.textContent='正在本机核对规则…';
     timer=setTimeout(async()=>{
       try{
-        const resp=await fetch('/rule-preview',{method:'POST',headers:{'Content-Type':'application/json','X-Moyin':'review'},body:JSON.stringify({policy:text})});
+        const resp=await fetch('/rule-preview',{method:'POST',headers:{'Content-Type':'application/json','X-Moyin':'review'},body:JSON.stringify({policy:text,mode})});
         if(!resp.ok)throw Error();
         const card=await resp.json();if(id!==revision)return;
         display(card);ruleCard=card;controls();

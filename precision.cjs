@@ -10,7 +10,8 @@ function supportedPlan({section,spec}){
 }
 function inScope(p,c){return (p.part==='both'||p.part===c.part)&&!!(c.family==='money'?p.price:p.delay)?.mask;}
 function schema(c,p){
-  const properties={依据:{type:'string'},类别:enumeration(...categories[c.family])};
+  const allPrices=c.family==='money'&&p.price.allPrices;
+  const properties={依据:{type:'string'},类别:enumeration(...categories[c.family],...(allPrices?['内部测算价']:[]))};
   if(c.family==='money'){
     if(p.price.recipient)properties.quote_recipient={type:'string'};
     if(p.price.issuedOnly)properties.发送状态=enumeration('已报出','未报出','不明');
@@ -22,6 +23,7 @@ function decide(p,c,v){
   if(!inScope(p,c))return '保留';
   if(!v||v.类别==='不确定')return '待核';
   if(c.family==='time')return v.类别==='实际延期'||(v.类别==='预计延期'&&!actualDelayOnly(p.delay))?'遮盖':'保留';
+  if(p.price.allPrices)return ['对客报价','供方采购价','内部测算价'].includes(v.类别)?'遮盖':'保留';
   if(v.类别!=='对客报价')return '保留';
   const q=p.price;
   if(q.recipient){
@@ -49,7 +51,8 @@ async function classify(sources,plan,generate){
         待判原句:source.slice(Math.max(0,row.start-30),row.start)+'〔'+row.value+'〕'+source.slice(row.end,row.end+30)};
     });
     const request={正文:sources.body,写作提示词:sources.prompt,候选:candidates};
-    const facts=await generate(system,JSON.stringify(request),{type:'object',properties,required:Object.keys(properties),additionalProperties:false});
+    const instruction=plan.price?.allPrices?system+' 内部估价、未发草案或测算的单价总价归入内部测算价；押金、已付账款按本笔用途判别。':system;
+    const facts=await generate(instruction,JSON.stringify(request),{type:'object',properties,required:Object.keys(properties),additionalProperties:false});
     // Compare parties after classifying the transaction, so a party match cannot turn a payment into a quote.
     const quotes=candidates.filter(c=>plan.price?.recipient && facts[c.编号]?.类别==='对客报价')
       .map(c=>({...c,实际收报价方:facts[c.编号].quote_recipient}));

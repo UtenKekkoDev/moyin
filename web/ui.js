@@ -5,7 +5,7 @@ function renderMode(){
   const precise=selectedMode==='precision';
   ui.modelBadge.textContent=precise?(precisionTarget?'内网服务 · 27B':'高精度 · 27B'):'本机 · 快速 4B';
   ui.modeNote.textContent=precise?(modeInfoError?'无法读取推理服务配置，请刷新页面或切回快速模式。':
-    precisionTarget===undefined?'正在读取服务配置…':(precisionTarget?'正文和写作提示词原文将发送到 '+precisionTarget+'。':'正文和写作提示词在本机处理。')+'请选择对客报价或延期规则。'):'';
+    precisionTarget===undefined?'正在读取服务配置…':(precisionTarget?'正文、写作提示词和脱敏要求将发送到 '+precisionTarget+'。':'正文和写作提示词在本机处理。')+'可填写本地脱敏要求或选择预设。'):'';
 }
 ui.modelMode.onchange=()=>{
   if(review&&(draftEdited||review.rows.some(r=>r.decision!==null))&&!confirm('切换模式会清除当前核对和编辑，继续？')){
@@ -25,17 +25,20 @@ let review=null,task=null,version=0,page=0,manualPart='body',draftEdited=false,i
 const el=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e;};
 function say(text,error=false){ui.status.textContent=text;ui.status.classList.toggle('error',error);}
 function pending(){return review?.rows.filter(r=>r.decision===null).length??0;}
+function canConfirmRule(){
+  return ruleCard?.route==='structured'||(selectedMode==='precision'&&ruleCard?.route==='custom');
+}
 function controls(){
   const busy=!!task||importing, done=!!review&&!pending();
   const canStart=!busy&&!!(ui.body.value.trim()||ui.prompt.value.trim());
   const needsRule=!!ui.policy.value.trim();
-  ui.run.disabled=!canStart||(needsRule&&ruleCard?.route!=='structured');
+  ui.run.disabled=!canStart||(needsRule&&!canConfirmRule());
   ui.run.hidden=needsRule&&ruleCard?.route==='fallback';
   ui.run.textContent=needsRule?'确认规则并识别':'开始本地识别';
   ui.freeRun.hidden=!needsRule||ruleCard?.route!=='fallback';
   ui.modelMode.disabled=busy;
   if(selectedMode==='precision'){
-    ui.run.disabled||=precisionTarget===undefined||ruleCard?.route!=='structured';
+    ui.run.disabled||=precisionTarget===undefined||!needsRule;
     ui.freeRun.hidden=true;
   }
   ui.freeRun.disabled=!canStart;ui.ruleTools.disabled=busy;
@@ -234,7 +237,7 @@ ui.clear.onclick=()=>{
 ui.run.onclick=()=>startAnalysis(false);
 ui.freeRun.onclick=()=>startAnalysis(true);
 async function startAnalysis(fallback){
-  if(ui.policy.value.trim()&&ruleCard?.route!==(fallback?'fallback':'structured'))return;
+  if(ui.policy.value.trim()&&(fallback?ruleCard?.route!=='fallback':!canConfirmRule()))return;
   if(task||!discardDraft())return;
   let vocabulary;try{vocabulary=readVocabulary(ui.vocabulary.value);}catch(e){say(e.message,true);return;}
   if(review?.rows.some(r=>r.decision!==null)&&!confirm('重新识别会清除逐处核对记录。继续？'))return;

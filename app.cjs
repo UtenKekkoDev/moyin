@@ -52,9 +52,9 @@ const server=http.createServer(async(req,res)=>{
   }
   if(req.url==='/rule-preview'){
     try{
-      const {policy=''}=await readRequest(req,8192);
+      const {policy='',mode='fast'}=await readRequest(req,8192);
       res.setHeader('Content-Type','application/json; charset=utf-8');
-      res.end(JSON.stringify(prepareRule(policy).card));
+      res.end(JSON.stringify(prepareRule(policy,mode).card));
     }catch(e){res.writeHead(400).end(e.message);}
     return;
   }
@@ -64,7 +64,7 @@ const server=http.createServer(async(req,res)=>{
   res.once('close',()=>job.abort());
   try {
     const {body,prompt,policy='',vocabulary=[],confirmation,mode='fast'}=await readRequest(req,550000);
-    const {plan,card}=prepareRule(policy);
+    const {plan,card}=prepareRule(policy,mode);
     if(!confirmed(card,confirmation)){res.writeHead(412).end('请先确认本次规则。');return;}
     if(!['precision','fast'].includes(mode))throw Error('未知识别模式。');
     const dictionary=validateVocabulary(vocabulary);

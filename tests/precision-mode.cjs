@@ -38,6 +38,20 @@ test('quote_recipient checks only an explicitly named receiver in scope',async()
   });
   assert(rows.every(row=>!row.suggest&&!row.uncertain));
 });
+test('all prices includes internal estimates and purchase prices only within the selected section',async()=>{
+  const rule=supportedPlan(prepareRule('只在正文中隐藏全部价格','precision').plan);
+  const sources={body:'内部测算120元，供方价格80元，回复客户160元，押金40元。',prompt:'请写160元。'};
+  const rows=await classify(sources,rule,async(_,input,schema)=>{
+    const candidates=JSON.parse(input).候选;
+    assert(candidates.every(c=>c.来源==='正文'));
+    const kinds=['内部测算价','供方采购价','对客报价','已发生收付'];
+    return Object.fromEntries(candidates.map((c,i)=>{
+      assert(schema.properties[c.编号].properties.类别.enum.includes('内部测算价'));
+      return [c.编号,{类别:kinds[i],依据:'按该处业务上下文判断。'}];
+    }));
+  });
+  assert.deepEqual(rows.filter(r=>r.suggest).map(r=>[r.part,r.value]),[['body','120元'],['body','80元'],['body','160元']]);
+});
 test('local mode switch waits for process close; external disconnect never spawns a fallback',async t=>{
   const events=[];
   t.mock.method(require('node:child_process'),'spawn',(_file,args)=>{

@@ -10,7 +10,7 @@ from zipfile import ZipFile, ZIP_DEFLATED
 def main():
     parser = ArgumentParser()
     parser.add_argument("runtime", type=Path, help="Windows runtime from the full offline distribution")
-    parser.add_argument("--version", default="v0.1.1")
+    parser.add_argument("--version", default="v0.2.0")
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     runtime = args.runtime.resolve(strict=True)
@@ -25,7 +25,7 @@ def main():
     tracked = check_output(["git", "ls-tree", "-rz", "--name-only", "HEAD"], cwd=root)
     with ZipFile(package, "w", ZIP_DEFLATED, compresslevel=6) as bundle:
         for entry in tracked.decode("utf-8").split("\0"):
-            if not entry or entry.startswith((".", "tools/")):
+            if not entry or entry.startswith((".", "tools/", "desktop/")):
                 continue
             data = check_output(["git", "show", f"HEAD:{entry}"], cwd=root)
             bundle.writestr(entry, data)

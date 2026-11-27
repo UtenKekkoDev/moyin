@@ -4,9 +4,9 @@
 
 ## 快速启动
 
-1. 登录有权限的 GitHub 账号，在 [v0.1.1 正式版](https://github.com/UtenKekkoDev/moyin/releases/tag/v0.1.1) 下载 Windows x64 ZIP 和 `SHA256SUMS.txt`。用 `Get-FileHash .\moyin-windows-x64-v0.1.1.zip` 与校验单核对后，解压到可写目录。ZIP 已附 Node 和 llama.cpp 运行时；源码检出可从 ZIP 复制 `runtime\`。
+1. 在 [v0.2.0 正式版](https://github.com/UtenKekkoDev/moyin/releases/tag/v0.2.0) 下载 Windows x64 桌面 ZIP 和 `SHA256SUMS.txt`。用 `Get-FileHash .\moyin-windows-x64-v0.2.0-desktop.zip` 核对 SHA-256，解压到可写目录。ZIP 内含 Node 和 llama.cpp 运行时。
 2. 默认只需下载 [Aztec-Coder-4B.Q4_K_M.gguf](https://huggingface.co/mradermacher/Aztec-Coder-4B-GGUF/resolve/488fa00b1e01fc00965b4467e6e592a78316ebb4/Aztec-Coder-4B.Q4_K_M.gguf)，按原文件名放在 `models\` 中。在解压目录运行 `Get-FileHash .\models\*.gguf -Algorithm SHA256`，与下表核对。
-3. 双击 **启动墨隐.cmd**，在 Edge 或 Chrome 中打开工作台。首次体验可导入 `examples\模拟项目计划.docx`，将 `examples\提示词.txt` 粘入写作提示词。
+3. 双击 **墨隐.exe**。首次可导入 `examples\模拟项目计划.docx` 并粘入随附的写作提示词。「文件涂黑」会打开独立窗口。桌面窗口需使用 x64 WebView2 Runtime，也可双击 **启动墨隐.cmd** 在浏览器中使用同一工作台。
 
 | 本机权重（两种模式独立下载） | SHA-256 |
 |---|---|
@@ -57,3 +57,12 @@ foreach ($test in $tests) {
 ```
 
 `evaluate.cjs` 是需要另传语料参数的评测入口。封版验收中，高精度模板 U01–U05 自动初稿 5/5 正确，人工纠正 0 处；快速模式 23/23 份日常 Word 经人工核对后完成复制回填；11/11 项专项测试通过。[使用说明](./使用说明.md) · [第三方许可](./licenses/)
+
+## 构建桌面便携包
+
+在 Windows x64 使用 Python 3.11 或更高版本、系统 .NET Framework 4.x 编译器、已校验的墨隐 Windows ZIP，以及固定版 [Microsoft.Web.WebView2 SDK 1.0.2903.40](https://www.nuget.org/packages/Microsoft.Web.WebView2/1.0.2903.40)。脚本校验 SDK 哈希并使用发布包里的同一套页面和服务，在 `dist` 下生成桌面 ZIP 和 SHA-256 文件。
+
+```powershell
+python tools/package_windows.py runtime --version v0.2.0
+python tools/package_desktop.py dist/moyin-windows-x64-v0.2.0.zip dist/webview2.nupkg
+```
